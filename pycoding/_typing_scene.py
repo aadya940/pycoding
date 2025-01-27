@@ -233,6 +233,34 @@ class CodingTutorial:
 
         return audio_files
 
+    def _get_default_audio_device(self):
+        """
+        Detects the default audio device using PulseAudio or ALSA.
+        Returns the device name if found, else None.
+        """
+        try:
+            # Query available audio devices using pactl (PulseAudio control tool)
+            result = subprocess.run(
+                ["pactl", "list", "short", "sources"],
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            output = result.stdout
+
+            # Search for a monitor source (usually used for screen recording)
+            for line in output.splitlines():
+                if "monitor" in line:
+                    # Extract the device name (1st column)
+                    return line.split()[1]
+
+            # Fallback to a default device if no monitor is found
+            _console.log("No monitor source found. Falling back to the default device.")
+            return "default"
+        except Exception as e:
+            _console.log(f"Error detecting audio device: {e}")
+            return None
+
     def _record_window_by_id(self, window_id: str, output_filename: str, fps: int = 20):
         coords = self._get_window_coordinates_by_id(window_id)
         if not coords:
@@ -249,6 +277,7 @@ class CodingTutorial:
         monitor = {"top": y, "left": x, "width": width, "height": height}
 
         display = os.getenv("DISPLAY", ":0")  # Default to :0 if DISPLAY is not set
+        audio_device = self._get_default_audio_device()
 
         # Define the ffmpeg command to capture both screen and audio
         ffmpeg_command = [
@@ -262,7 +291,7 @@ class CodingTutorial:
             "-f",
             "pulse",  # Capture audio from PulseAudio
             "-i",
-            "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor",  # Use the default audio input (adjust as necessary for your system)
+            audio_device,  # Use the default audio input (adjust as necessary for your system)
             "-c:v",
             "libx264",  # Video codec
             "-r",
