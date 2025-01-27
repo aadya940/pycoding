@@ -3,14 +3,20 @@
 An Agentic Python Library to create fully automated natural looking
 python coding tutorial generation with audio narration. 
 
-### Example
+### Code Example
 
 ```bash
 python3 -m pycoding --topic "Neural Network using Tensorflow" --io-path X.csv --io-path y.csv --google-api-key YOUR_GOOGLE_API_KEY --eleven-labs-api-key YOUR_ELEVEN_LABS_API_KEY --eleven-labs-voice-id YOUR_ELEVEN_LABS_VOIC_ID
 ```
 
-This will generate a fully automated programming tutorial with narration based on user feedback 
-teaching Neural Networks using Tensorflow.
+This will generate a fully automated programming tutorial with narration based on user feedback teaching Neural Networks using Tensorflow.
+
+### Examples
+
+NDArrays in Numpy:
+
+https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9
+
 
 ### Supported Flags
 
