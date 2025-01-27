@@ -1,0 +1,7 @@
+ffmpeg
+google-generativeai
+pydub
+simpleaudio
+pyautogui
+rich 
+elevenlabs
