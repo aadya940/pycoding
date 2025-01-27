@@ -29,7 +29,7 @@ Requires:
 - ffmpeg.
 - A eleven labs and Google Generative AI Account.
 - Requires IPython.
-- Requires wmctrl, xwininfo, gnome-terminal, ipython shell commands.
+- Requires wmctrl, xwininfo, gnome-terminal, ipython, pactl shell commands.
 ```
 ```
 - Clone.
