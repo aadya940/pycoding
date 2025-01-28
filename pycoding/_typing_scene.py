@@ -73,9 +73,6 @@ class CodingTutorial:
                 self.model_object.send_message(_feedback)
 
         _code = parse_code(_response)  # Must return a list of code snippets.
-        _console.log(_code)
-        _console.log("Proceed? (yes/no) \n")
-        _inp = input()
         return _code
 
     def _get_ipython_window_id(self):
@@ -159,7 +156,13 @@ class CodingTutorial:
                 for line in cell.splitlines():
                     pyautogui.typewrite(line, interval=0.1)  # Simulate typing the line.
                     pyautogui.press("enter")  # Press Enter to run the line.
-                    time.sleep(1)  # Small delay between commands.
+                    _split = line.split(" ")
+                    if ("import" in _split) and (
+                        ("tensorflow" in _split) or ("torch" in _split)
+                    ):
+                        time.sleep(30)
+                    else:
+                        time.sleep(2)
 
                 # Play the corresponding audio file after each cell.
                 _play_audio_on_cell_execution(audio_files[i])
