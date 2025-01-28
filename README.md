@@ -6,7 +6,7 @@ python coding tutorial generation with audio narration.
 ### Code Example
 
 ```bash
-python3 -m pycoding --topic "Neural Network using Tensorflow" --io-path X.csv --io-path y.csv --google-api-key YOUR_GOOGLE_API_KEY --eleven-labs-api-key YOUR_ELEVEN_LABS_API_KEY --eleven-labs-voice-id YOUR_ELEVEN_LABS_VOIC_ID
+python3 -m pycoding --topic "Neural Network using Tensorflow" --io-path X.csv y.csv --google-api-key YOUR_GOOGLE_API_KEY --elevenlabs-api-key YOUR_ELEVENLABS_API_KEY --elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID
 ```
 
 This will generate a fully automated programming tutorial with narration based on user feedback teaching Neural Networks using Tensorflow.

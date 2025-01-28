@@ -10,6 +10,7 @@ def parse_code(text):
     _snippets = [iter_["code"] for iter_ in _list]
     return _snippets
 
+
 def _play_audio_on_cell_execution(audio_file):
     """Play an audio file after a code cell is executed using pydub."""
     audio = AudioSegment.from_file(audio_file)

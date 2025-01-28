@@ -1,7 +1,8 @@
 from ._typing_scene import CodingTutorial
+from ._ai import GoogleGenAI
 import argparse
 from pathlib import Path
-from rich import Console
+from rich.console import Console
 
 # Initialize console for rich logging
 _console = Console()
@@ -9,7 +10,9 @@ _console = Console()
 # Argument parser setup
 parser = argparse.ArgumentParser(description="Paths for Coding Tutorial.")
 
-parser.add_argument("--topic", type=str, required=True, help="Topic to make coding videos on.")
+parser.add_argument(
+    "--topic", type=str, required=True, help="Topic to make coding videos on."
+)
 parser.add_argument(
     "--google-api-key", type=str, required=True, help="Google LLM API Key."
 )
@@ -61,10 +64,13 @@ else:
     path_info = []
     _console.log("[yellow]No paths provided. Skipping path setup.[/yellow]")
 
+_ai_object = GoogleGenAI(_args.google_api_key)
+
 _tutorial = CodingTutorial(
+    topic=_args.topic,
     eleven_labs_api_key=_args.elevenlabs_api_key,
-    eleven_labs_voice_id = _args.elevenlabs_voice_id,
-    google_api_key=_args.google_api_key,
+    eleven_labs_voice_id=_args.elevenlabs_voice_id,
+    model_object=_ai_object,
     path_info=path_info,
 )
 _tutorial.make_tutorial()

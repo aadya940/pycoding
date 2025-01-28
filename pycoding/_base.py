@@ -1,5 +1,6 @@
 """Base Classes for different tasks."""
 
+
 class BaseVoice:
     pass
 
