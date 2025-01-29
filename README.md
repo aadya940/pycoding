@@ -26,6 +26,8 @@ https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9
 --elevenlabs-api-key : Eleven Labs Text to Speech API Key.
 --elevenlabs-voice-id : Eleven Labs Voice ID for Text to Speech.
 --io-path : Paths to directories you want to consider for code generation.
+--narration-type : either `after` or `parallel`. Specifies if  Narration 
+has to happen during or after code typewriting.
 ```
 
 ### Set Up

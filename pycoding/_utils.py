@@ -1,6 +1,19 @@
 import re
 from pydub import AudioSegment
 from pydub.playback import play
+import subprocess
+import time
+import psutil
+
+
+def _is_ipython_idle(proc):
+    """Check if the IPython process is idle by monitoring its CPU usage."""
+    try:
+        p = psutil.Process(proc.pid)
+        cpu_usage = p.cpu_percent(interval=0.1)  # Get CPU usage
+        return cpu_usage < 1  # If CPU usage is very low, assume idle
+    except psutil.NoSuchProcess:
+        return True  # If the process is gone, it's done
 
 
 def parse_code(text):

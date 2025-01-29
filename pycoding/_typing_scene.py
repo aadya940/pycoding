@@ -1,5 +1,5 @@
 from ._ai import GoogleGenAI
-from ._utils import parse_code, _play_audio_on_cell_execution
+from ._utils import parse_code, _play_audio_on_cell_execution, _is_ipython_idle
 
 import pyautogui
 import time
@@ -17,6 +17,30 @@ _console = Console()
 
 
 class CodingTutorial:
+    """
+    Automates the creation of interactive coding tutorials with AI-generated explanations,
+    screen recordings, and voice narration.
+
+    Features:
+    - Generates Python code snippets using an AI model.
+    - Provides AI-generated explanations for each snippet.
+    - Records the IPython terminal session while executing the code.
+    - Uses ElevenLabs AI for natural-sounding voice narration.
+    - Supports real-time narration (parallel) or post-execution narration (after).
+    - Saves recorded tutorials with synchronized audio and screen capture.
+
+    Attributes:
+    -----------
+    model_object : object
+        AI model interface to generate code snippets and explanations.
+    tutorial_topic : str
+        The topic for which the tutorial is generated.
+    narration_mode : str
+        Mode of narration, either 'parallel' (while typing) or 'after' (post-execution).
+    output_dir : str
+        Directory where generated files (code, audio, video) are stored.
+    """
+
     def __init__(
         self,
         topic: str,
@@ -24,6 +48,7 @@ class CodingTutorial:
         eleven_labs_voice_id: str,
         model_object: GoogleGenAI,
         path_info=None,
+        narration_type="after",
     ):
         self.topic = topic
         self.voice_object = {
@@ -45,6 +70,7 @@ class CodingTutorial:
         self.recording_process = None
         assert path_info is not None
         self.path_info = path_info
+        self.narration_type = narration_type
 
     def _generate_tutorial_code(self):
         _prompt = f"""Write Python code snippets to explain the following topic. 
@@ -153,19 +179,26 @@ class CodingTutorial:
         try:
             for i, cell in enumerate(code_cells):
                 # Type the entire cell's code.
+                if self.narration_type == "parallel":
+                    self._audio_thread = threading.Thread(
+                        target=_play_audio_on_cell_execution, args=(audio_files[i],)
+                    )
+                    self._audio_thread.start()
+
                 for line in cell.splitlines():
                     pyautogui.typewrite(line, interval=0.1)  # Simulate typing the line.
                     pyautogui.press("enter")  # Press Enter to run the line.
-                    _split = line.split(" ")
-                    if ("import" in _split) and (
-                        ("tensorflow" in _split) or ("torch" in _split)
-                    ):
-                        time.sleep(30)
-                    else:
-                        time.sleep(2)
+
+                # Only start writing the next command after previous finishes execution.
+                while not _is_ipython_idle(proc):
+                    time.sleep(0.5)
+
+                if self.narration_type == "parallel":
+                    self._audio_thread.join()
 
                 # Play the corresponding audio file after each cell.
-                _play_audio_on_cell_execution(audio_files[i])
+                if self.narration_type == "after":
+                    _play_audio_on_cell_execution(audio_files[i])
 
         finally:
             # End the screen recording.

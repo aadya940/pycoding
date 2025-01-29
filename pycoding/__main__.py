@@ -35,6 +35,13 @@ parser.add_argument(
     required=False,
     help="Paths to directories you want to consider for code generation.",
 )
+parser.add_argument(
+    "--narration-type",
+    type=str,
+    required=False,
+    help="""If Narration has to happen during or after code typewriting. Select
+    one of `after` and `parallel`.""",
+)
 
 # Parse arguments
 _args = parser.parse_args()
@@ -72,5 +79,7 @@ _tutorial = CodingTutorial(
     eleven_labs_voice_id=_args.elevenlabs_voice_id,
     model_object=_ai_object,
     path_info=path_info,
+    narration_method=_args.narration_type,
 )
+
 _tutorial.make_tutorial()
