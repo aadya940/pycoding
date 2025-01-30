@@ -50,6 +50,8 @@ class CodingTutorial:
         Defaults to `after`.
     language : str
         The name of your jupyter kernel, defaults to `python3`.
+    force_approve : boolean
+        Approve LLM response by default or not. Defaults to False.
     """
 
     def __init__(
@@ -61,6 +63,7 @@ class CodingTutorial:
         path_info=None,
         narration_type="after",
         language="python3",
+        force_approve=False,
     ):
         self.topic = topic
         self.voice_object = {
@@ -84,22 +87,25 @@ class CodingTutorial:
         self.path_info = path_info
         self.narration_type = narration_type
         self.language = language
+        self.force_approve = force_approve
 
-        self._prompt_manager = PromptManager(self._language)
+        self._prompt_manager = PromptManager(self.language)
 
     def _generate_tutorial_code(self):
         _prompt = self._prompt_manager.build_prompt()
         while True:
             _response = self.model_object.send_message(_prompt)
             _console.log(_response)
-            _approval = input(f"Do you approve the code snippets? (yes/no): ")
 
-            if _approval.lower() == "yes":
-                break
+            if not self.force_approve:
+                _approval = input(f"Do you approve the code snippets? (yes/no): ")
 
-            else:
-                _feedback = input("Provide feedback to improve the response: ")
-                self.model_object.send_message(_feedback)
+                if _approval.lower() == "yes":
+                    break
+
+                else:
+                    _feedback = input("Provide feedback to improve the response: ")
+                    self.model_object.send_message(_feedback)
 
         _code = parse_code(_response)  # Must return a list of code snippets.
         return _code
@@ -164,7 +170,8 @@ class CodingTutorial:
 
         # Open jupyter shell.
         proc = subprocess.Popen(
-            ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language]
+            ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language],
+            shell=True,
         )
         time.sleep(6)  # Give it time to load.
 
@@ -237,13 +244,15 @@ class CodingTutorial:
                 _response = self.model_object.send_message(_prompt)
                 _text = _response.strip()
                 _console.log(_text)
-                _approve = input("Do you approve the explanation? (yes/no)")
 
-                if _approve == "yes":
-                    break
-                else:
-                    _feedback = input("What feedback do you have? ")
-                    self.model_object.send_message(_feedback)
+                if not self.force_approve:
+                    _approve = input("Do you approve the explanation? (yes/no)")
+
+                    if _approve == "yes":
+                        break
+                    else:
+                        _feedback = input("What feedback do you have? ")
+                        self.model_object.send_message(_feedback)
 
             # Generate audio for the response
             response = self._client.text_to_speech.convert(
@@ -276,7 +285,7 @@ class CodingTutorial:
 
     def _get_default_audio_device(self):
         """
-        Detects the default audio device using PulseAudio or ALSA.
+        Detects the default audio device using PulseAudio.
         Returns the device name if found, else None.
         """
         try:

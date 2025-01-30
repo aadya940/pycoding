@@ -42,6 +42,11 @@ parser.add_argument(
     help="""If Narration has to happen during or after code typewriting. Select
     one of `after` and `parallel`.""",
 )
+parser.add_argument(
+    "--force-approve",
+    action="store_true",  # Makes it a flag (True if provided, False if absent)
+    help="Automatically approve LLM responses without manual confirmation (default: False).",
+)
 
 # Parse arguments
 _args = parser.parse_args()
@@ -80,6 +85,7 @@ _tutorial = CodingTutorial(
     model_object=_ai_object,
     path_info=path_info,
     narration_type=_args.narration_type,
+    force_approve=_args.force_approve,
 )
 
 _tutorial.make_tutorial()
