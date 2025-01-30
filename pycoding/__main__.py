@@ -79,7 +79,7 @@ _tutorial = CodingTutorial(
     eleven_labs_voice_id=_args.elevenlabs_voice_id,
     model_object=_ai_object,
     path_info=path_info,
-    narration_method=_args.narration_type,
+    narration_type=_args.narration_type,
 )
 
 _tutorial.make_tutorial()

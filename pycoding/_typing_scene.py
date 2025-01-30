@@ -6,6 +6,7 @@ import time
 import subprocess
 import os
 import threading
+import nbformat
 
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
@@ -39,6 +40,11 @@ class CodingTutorial:
         Mode of narration, either 'parallel' (while typing) or 'after' (post-execution).
     output_dir : str
         Directory where generated files (code, audio, video) are stored.
+    narration_type : str
+        Specify if narration happens during or after typewriting. (one of `after` or `parallel`)
+        Defaults to `after`.
+    language : str
+        The name of your jupyter kernel, defaults to `python3`.
     """
 
     def __init__(
@@ -49,6 +55,7 @@ class CodingTutorial:
         model_object: GoogleGenAI,
         path_info=None,
         narration_type="after",
+        language="python3",
     ):
         self.topic = topic
         self.voice_object = {
@@ -71,6 +78,7 @@ class CodingTutorial:
         assert path_info is not None
         self.path_info = path_info
         self.narration_type = narration_type
+        self.language = language
 
     def _generate_tutorial_code(self):
         _prompt = f"""Write Python code snippets to explain the following topic. 
@@ -160,7 +168,9 @@ class CodingTutorial:
         assert len(code_cells) == len(audio_files)
 
         # Open jupyter shell.
-        proc = subprocess.Popen(["gnome-terminal", "--", "jupyter", "console"])
+        proc = subprocess.Popen(
+            ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language]
+        )
         time.sleep(6)  # Give it time to load.
 
         window_id = self._get_jupyter_window_id()
