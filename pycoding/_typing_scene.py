@@ -1,5 +1,5 @@
 from ._ai import GoogleGenAI
-from ._utils import parse_code, _play_audio_on_cell_execution, _is_ipython_idle
+from ._utils import parse_code, _play_audio_on_cell_execution, _is_jupyter_idle
 
 import pyautogui
 import time
@@ -24,7 +24,7 @@ class CodingTutorial:
     Features:
     - Generates Python code snippets using an AI model.
     - Provides AI-generated explanations for each snippet.
-    - Records the IPython terminal session while executing the code.
+    - Records the Jupyter terminal session while executing the code.
     - Uses ElevenLabs AI for natural-sounding voice narration.
     - Supports real-time narration (parallel) or post-execution narration (after).
     - Saves recorded tutorials with synchronized audio and screen capture.
@@ -101,7 +101,7 @@ class CodingTutorial:
         _code = parse_code(_response)  # Must return a list of code snippets.
         return _code
 
-    def _get_ipython_window_id(self):
+    def _get_jupyter_window_id(self):
         try:
             # Run wmctrl -lp and capture its output
             result = subprocess.run(
@@ -109,9 +109,9 @@ class CodingTutorial:
             )
             output = result.stdout
 
-            # Search for the line containing 'IPython'
+            # Search for the line containing 'Terminal' (Where Jupyter is running)
             for line in output.splitlines():
-                if "IPython" in line:
+                if "Terminal" in line:
                     # Extract the window ID (1st field in the output)
                     parts = line.split()
                     if len(parts) > 0:
@@ -159,12 +159,12 @@ class CodingTutorial:
         audio_files = self._generate_audio_file(code_cells)
         assert len(code_cells) == len(audio_files)
 
-        # Open ipython shell.
-        proc = subprocess.Popen(["gnome-terminal", "--", "ipython"])
+        # Open jupyter shell.
+        proc = subprocess.Popen(["gnome-terminal", "--", "jupyter", "console"])
         time.sleep(6)  # Give it time to load.
 
-        window_id = self._get_ipython_window_id()
-        _console.log(f"Window ID for the IPython shell: {window_id}")
+        window_id = self._get_jupyter_window_id()
+        _console.log(f"Window ID for the Jupyter Console: {window_id}")
 
         self.recording_process = True
 
@@ -190,7 +190,7 @@ class CodingTutorial:
                     pyautogui.press("enter")  # Press Enter to run the line.
 
                 # Only start writing the next command after previous finishes execution.
-                while not _is_ipython_idle(proc):
+                while not _is_jupyter_idle(proc):
                     time.sleep(0.5)
 
                 if self.narration_type == "parallel":

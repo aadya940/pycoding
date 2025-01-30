@@ -5,3 +5,5 @@ simpleaudio
 pyautogui
 rich 
 elevenlabs
+jupyter
+ipython

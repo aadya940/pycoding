@@ -6,7 +6,7 @@ import time
 import psutil
 
 
-def _is_ipython_idle(proc):
+def _is_jupyter_idle(proc):
     """Check if the IPython process is idle by monitoring its CPU usage."""
     try:
         p = psutil.Process(proc.pid)
