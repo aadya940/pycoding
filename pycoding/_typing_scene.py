@@ -1,5 +1,10 @@
 from ._ai import GoogleGenAI
-from ._utils import parse_code, _play_audio_on_cell_execution, _is_jupyter_idle
+from ._utils import (
+    parse_code,
+    _play_audio_on_cell_execution,
+    _is_jupyter_idle,
+)
+from ._prompts import PromptManager
 
 import pyautogui
 import time
@@ -80,20 +85,10 @@ class CodingTutorial:
         self.narration_type = narration_type
         self.language = language
 
+        self._prompt_manager = PromptManager(self._language)
+
     def _generate_tutorial_code(self):
-        _prompt = f"""Write Python code snippets to explain the following topic. 
-        Write only well-commented code snippets, and ensure each snippet is 
-        under 30 seconds to read.
-
-        **Topic:**
-        {self.topic}
-
-        **Instructions:**
-        1. Split the code into multiple ```python your_code ``` blocks.
-        2. Each block should be well-commented, focusing on clarity and explanation.
-        3. Use or consider the following paths and their associated purposes in the code:
-        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
-        """
+        _prompt = self._prompt_manager.build_prompt()
         while True:
             _response = self.model_object.send_message(_prompt)
             _console.log(_response)
