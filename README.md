@@ -1,7 +1,17 @@
 ### Pycoding
 
-An Agentic Python Library to create fully automated natural looking
-python coding tutorial generation with audio narration. 
+An Agentic Python Library to create fully automated natural looking coding tutorial generation with audio narration. 
+
+Supported languages:
+
+```
+Python
+C/C++
+Julia
+Rust
+Bash
+R
+```
 
 ### Code Example
 
