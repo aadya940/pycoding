@@ -8,3 +8,5 @@ rich
 elevenlabs
 jupyter
 ipython
+sounddevice
+pygetwindow
