@@ -3,6 +3,7 @@ google-generativeai
 pydub
 simpleaudio
 pyautogui
+pynput
 rich 
 elevenlabs
 jupyter

@@ -49,6 +49,7 @@ class PromptManager:
         #pragma cling add_include_path("your/path")
         #pragma cling load("your_library")
         5. Ensure compatibility with the Cling compiler.
+        6. Use quotes instead of angle brackets while import any headers in the code.
         """
 
     def _r_prompt(self):

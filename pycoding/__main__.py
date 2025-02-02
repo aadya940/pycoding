@@ -43,6 +43,12 @@ parser.add_argument(
     one of `after` and `parallel`.""",
 )
 parser.add_argument(
+    "--language",
+    type=str,
+    required=False,
+    help="""Programming language of the video. (Ex.: `xcpp17` for C++, `python3` for python)""",
+)
+parser.add_argument(
     "--force-approve",
     action="store_true",  # Makes it a flag (True if provided, False if absent)
     help="Automatically approve LLM responses without manual confirmation (default: False).",
@@ -86,6 +92,7 @@ _tutorial = CodingTutorial(
     path_info=path_info,
     narration_type=_args.narration_type,
     force_approve=_args.force_approve,
+    language=_args.language,
 )
 
 _tutorial.make_tutorial()

@@ -3,15 +3,17 @@ from ._utils import (
     parse_code,
     _play_audio_on_cell_execution,
     _is_jupyter_idle,
+    _get_audio_length,
 )
 from ._prompts import PromptManager
 
 import pyautogui
+from pynput.keyboard import Controller
 import time
 import subprocess
 import os
 import threading
-import nbformat
+import multiprocessing
 
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
@@ -28,7 +30,7 @@ class CodingTutorial:
     screen recordings, and voice narration.
 
     Features:
-    - Generates Python code snippets using an AI model.
+    - Generates code snippets using an AI model.
     - Provides AI-generated explanations for each snippet.
     - Records the Jupyter terminal session while executing the code.
     - Uses ElevenLabs AI for natural-sounding voice narration.
@@ -49,7 +51,8 @@ class CodingTutorial:
         Specify if narration happens during or after typewriting. (one of `after` or `parallel`)
         Defaults to `after`.
     language : str
-        The name of your jupyter kernel, defaults to `python3`.
+        The name of your jupyter kernel, defaults to `python3`. Other languages are r, julia,
+        rust, xcpp17 (for C++), bash.
     force_approve : boolean
         Approve LLM response by default or not. Defaults to False.
     """
@@ -89,7 +92,7 @@ class CodingTutorial:
         self.language = language
         self.force_approve = force_approve
 
-        self._prompt_manager = PromptManager(self.language)
+        self._prompt_manager = PromptManager(language=self.language, topic=self.topic)
 
     def _generate_tutorial_code(self):
         _prompt = self._prompt_manager.build_prompt()
@@ -123,8 +126,10 @@ class CodingTutorial:
                 if "Terminal" in line:
                     # Extract the window ID (1st field in the output)
                     parts = line.split()
+
                     if len(parts) > 0:
                         return parts[0]  # Window ID is in the 1st column
+
             return None  # If no match was found
 
         except Exception as e:
@@ -158,6 +163,7 @@ class CodingTutorial:
             height = int(output.split("Height:")[1].split()[0])
 
             return x, y, width, height
+
         except Exception as e:
             print(f"Error fetching window coordinates: {e}")
             return None
@@ -166,12 +172,13 @@ class CodingTutorial:
         # Generate Code Cells.
         code_cells = self._generate_tutorial_code()
         audio_files = self._generate_audio_file(code_cells)
+        keyboard = Controller()
+
         assert len(code_cells) == len(audio_files)
 
         # Open jupyter shell.
         proc = subprocess.Popen(
             ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language],
-            shell=True,
         )
         time.sleep(6)  # Give it time to load.
 
@@ -192,21 +199,41 @@ class CodingTutorial:
             for i, cell in enumerate(code_cells):
                 # Type the entire cell's code.
                 if self.narration_type == "parallel":
-                    self._audio_thread = threading.Thread(
+                    self._audio_process = multiprocessing.Process(
                         target=_play_audio_on_cell_execution, args=(audio_files[i],)
                     )
-                    self._audio_thread.start()
+                    self._audio_process.start()
+
+                _in = time.time()
 
                 for line in cell.splitlines():
-                    pyautogui.typewrite(line, interval=0.1)  # Simulate typing the line.
+                    for char in line:
+                        keyboard.press(char)
+                        time.sleep(0.1)
+                        keyboard.release(char)
+
                     pyautogui.press("enter")  # Press Enter to run the line.
 
                 # Only start writing the next command after previous finishes execution.
                 while not _is_jupyter_idle(proc):
+                    _console.log("In Jupyter Idle block.")
                     time.sleep(0.5)
 
+                _out = time.time()
+                _len = _out - _in
+
+                _audio_length = _get_audio_length(audio_files[i])
+                _diff = abs(_len - _audio_length)
+
+                _console.log("Code Block came here.")
+
                 if self.narration_type == "parallel":
-                    self._audio_thread.join()
+                    self._audio_process.join(timeout=(_diff + 10))
+                    if self._audio_process.is_alive():
+                        _console.log(
+                            "Audio process is taking too long. Terminating forcefully."
+                        )
+                        self._audio_process.terminate()
 
                 # Play the corresponding audio file after each cell.
                 if self.narration_type == "after":
@@ -239,6 +266,7 @@ class CodingTutorial:
             6. Address numbers with words, example `1` as `one`. Also address
             arrays with words, example [1, 2, 3] as `list with elements one, two
             and three.`
+            7. Explain the philosophy behind different objects in the code.
             """
             while True:
                 _response = self.model_object.send_message(_prompt)
@@ -273,6 +301,7 @@ class CodingTutorial:
                 for chunk in response:
                     if chunk:
                         f.write(chunk)
+
             _console.log(f"Audio file saved at {path}")
 
         audio_files = []
@@ -307,6 +336,7 @@ class CodingTutorial:
             # Fallback to a default device if no monitor is found
             _console.log("No monitor source found. Falling back to the default device.")
             return "default"
+
         except Exception as e:
             _console.log(f"Error detecting audio device: {e}")
             return None
@@ -353,6 +383,9 @@ class CodingTutorial:
             "-y",  # Overwrite output file if it exists
             output_filename,  # Output video file
         ]
+
+        # Force audio-video sync.
+        ffmpeg_command.extend(["-async", "1", "-vsync", "1"])
 
         _console.log("Recording...")
         # Start recording using ffmpeg
