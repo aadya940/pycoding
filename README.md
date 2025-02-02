@@ -1,7 +1,17 @@
 ### Pycoding
 
-An Agentic Python Library to create fully automated natural looking
-python coding tutorial generation with audio narration. 
+An Agentic Python Library to create fully automated natural looking coding tutorial generation with audio narration. 
+
+Supported languages:
+
+```
+Python
+C/C++
+Julia
+Rust
+Bash
+R
+```
 
 ### Code Example
 
@@ -28,6 +38,7 @@ https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9
 --io-path : Paths to directories you want to consider for code generation.
 --narration-type : either `after` or `parallel`. Specifies if  Narration 
 has to happen during or after code typewriting.
+--force-approve : Approve all AI responses to `yes` by default.
 ```
 
 ### Set Up
