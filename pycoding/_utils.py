@@ -35,7 +35,3 @@ def _play_audio_on_cell_execution(audio_file):
     return
 
 
-"""
-python3 -m pycoding --topic "Type aliases with using in C++ in 5 lines." --google-api-key AIzaSyAyjZnxVn4XmWvsiXELUzyJ5XjfUozMsic --elevenlabs-api-key sk_69ec6665faa8e6a4f43da1dd6a9d10732bb1fd86a7428374 --elevenlabs-voice-id Qc0h5B5Mqs8oaH4sFZ9X --narration-type parallel --language xcpp17
-
-"""
