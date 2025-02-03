@@ -279,53 +279,91 @@ class CodingTutorial:
         return self._platform_manager.get_audio_device()
 
     def _record_window_by_id(self, window_id: str, output_filename: str, fps: int = 20):
+        """Records a specific window region along with audio, supporting multiple platforms."""
+
         coords = self._get_window_coordinates_by_id(window_id)
         if not coords:
+            _console.log("Failed to get window coordinates.")
             return
 
         x, y, width, height = coords
 
-        # Manually reduce dimensions
-        x += 1  # Reduce x position by 1 (optional, adjust as needed)
-        y += 1  # Reduce y position by 1 (optional, adjust as needed)
-        width -= 2  # Reduce width by 2 units
-        height -= 2  # Reduce height by 2 units
+        # Adjust the region slightly to avoid UI glitches
+        x += 1
+        y += 1
+        width -= 2
+        height -= 2
 
-        monitor = {"top": y, "left": x, "width": width, "height": height}
+        # Detect platform
+        system = platform.system()
 
-        display = os.getenv("DISPLAY", ":0")  # Default to :0 if DISPLAY is not set
-        audio_device = self._get_default_audio_device()
+        # Set platform-specific configurations
+        if system == "Linux":
+            screen_grab = "x11grab"
+            audio_capture = "pulse"
+            display = os.getenv("DISPLAY", ":0")
+            screen_input = f"{display}.0+{x},{y}"
+            audio_device = self._get_default_audio_device()  # Detect PulseAudio device
+            frame_rate_flag = "-r"
 
-        # Define the ffmpeg command to capture both screen and audio
+        elif system == "Windows":
+            screen_grab = "gdigrab"
+            audio_capture = "dshow"
+            screen_input = "desktop"
+            audio_device = (
+                self._get_default_audio_device()
+            )  # Detect DirectShow audio device
+            frame_rate_flag = "-framerate"
+
+        elif system == "Darwin":  # macOS
+            screen_grab = "avfoundation"
+            audio_capture = "avfoundation"
+            screen_input = "1"  # Capture main screen (use `ffmpeg -f avfoundation -list_devices true -i ""` to check)
+            audio_device = "1"  # Replace with actual audio device index
+            frame_rate_flag = "-r"
+
+        else:
+            _console.log("Unsupported platform.")
+            return
+
+        # Build FFmpeg command
         ffmpeg_command = [
             "ffmpeg",
             "-f",
-            "x11grab",  # Grab the screen using X11
-            "-s",
-            f"{width}x{height}",  # Set screen size
+            screen_grab,  # Screen capture method
+            frame_rate_flag,
+            str(fps),  # Frame rate
+            "-video_size",
+            f"{width}x{height}",  # Capture only the selected region
+            "-offset_x",
+            str(x),
+            "-offset_y",
+            str(y) if system == "Windows" else "",  # Window position (Windows only)
             "-i",
-            f"{display}.0+{x},{y}",  # Capture the specific screen region
+            screen_input,  # Input screen source
             "-f",
-            "pulse",  # Capture audio from PulseAudio
+            audio_capture,  # Audio capture method
             "-i",
-            audio_device,  # Use the default audio input (adjust as necessary for your system)
+            audio_device,  # Audio input device
             "-c:v",
             "libx264",  # Video codec
-            "-r",
-            str(fps),  # Frame rate
+            "-preset",
+            "ultrafast",  # Reduce encoding delay
             "-c:a",
             "aac",  # Audio codec
-            "-strict",
-            "experimental",  # Allow experimental codecs
-            "-y",  # Overwrite output file if it exists
-            output_filename,  # Output video file
+            "-y",  # Overwrite output file
+            output_filename,  # Output file
         ]
 
-        # Force audio-video sync.
+        # Remove empty strings from command list
+        ffmpeg_command = [arg for arg in ffmpeg_command if arg]
+
+        # Force audio-video sync
         ffmpeg_command.extend(["-async", "1", "-vsync", "1"])
 
-        _console.log("Recording...")
-        # Start recording using ffmpeg
+        _console.log(f"Recording on {system} with command: {' '.join(ffmpeg_command)}")
+
+        # Start recording using FFmpeg
         self.ffmpeg_process = subprocess.Popen(ffmpeg_command)
 
     def _end_screen_recording(self):
