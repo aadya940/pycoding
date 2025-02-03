@@ -20,7 +20,6 @@ import multiprocessing
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
-import ffmpeg
 from rich.console import Console
 
 _console = Console()
@@ -95,7 +94,7 @@ class CodingTutorial:
         self.force_approve = force_approve
 
         self._prompt_manager = PromptManager(language=self.language, topic=self.topic)
-        self._platform_manager = PlatformManager(platform.system())
+        self._platform_manager = PlatformManager(platform.system(), self.language)
 
     def _generate_tutorial_code(self):
         _prompt = self._prompt_manager.build_prompt()

@@ -5,9 +5,9 @@ _console = Console()
 
 
 class LinuxManager:
-    def __init__(self):
+    def __init__(self, language):
         # Check if `wmctrl` and `xwininfo` and `pactl` are present or not.
-        pass
+        self.language = language
 
     def get_window_id(self):
         try:
@@ -61,9 +61,9 @@ class LinuxManager:
             print(f"Error fetching window coordinates: {e}")
             return None
 
-    def open_jupyter_console(self, language):
+    def open_jupyter_console(self):
         proc = subprocess.Popen(
-            ["gnome-terminal", "--", "jupyter", "console", "--kernel", language],
+            ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language],
         )
         return proc
 
