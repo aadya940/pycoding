@@ -124,7 +124,7 @@ class CodingTutorial:
         Get the coordinates of a window by its ID using xwininfo.
         """
         # Use PlatformManager
-        return self._platform_manager.get_window_coordinates_using_id(window_id)
+        return self._platform_manager.get_coordinates_using_id(window_id)
 
     def _main(self):
         # Generate Code Cells.
@@ -137,7 +137,7 @@ class CodingTutorial:
         # Open jupyter shell.
 
         # Use PlatformManager
-        proc = self._platform_manager.open_jupyter_console(self.language)
+        proc = self._platform_manager.open_jupyter_console()
         time.sleep(6)  # Give it time to load.
 
         window_id = self._get_jupyter_window_id()
