@@ -1,8 +1,7 @@
 import subprocess
+import time
 from rich.console import Console
 import pygetwindow as gw
-import sounddevice as sd
-import platform
 
 _console = Console()
 
@@ -10,7 +9,7 @@ _console = Console()
 class WindowsManager:
     def __init__(self, language):
         self.language = language
-        self.unique_title = f"JupyterConsole_{self.language}"
+        self.unique_title = f"JupyterConsole"
         self._target_window = None
 
     def get_window_id(self):
@@ -49,56 +48,26 @@ class WindowsManager:
         return None
 
     def open_jupyter_console(self):
-        """Launch Jupyter console in a new command window with a unique title."""
-        if platform.system() != "Windows":
-            _console.log(
-                "[bold yellow]This function is only supported on Windows.[/bold yellow]"
-            )
-            return None
-
-        command = (
-            f"title {self.unique_title} && jupyter console --kernel {self.language}"
-        )
-
+        """
+        Launch a new Command Prompt window that runs:
+          jupyter console --kernel <language>
+        We use the 'start' command to open a new window. Note that this
+        requires the jupyter executable to be in your PATH.
+        """
         try:
+            # The /k switch tells cmd.exe to run the command and then remain open.
+            # Using shell=True because 'start' is a shell builtin.
+            command = (
+                f"title {self.unique_title} && jupyter console --kernel {self.language}"
+            )
+
             proc = subprocess.Popen(
                 ["cmd", "/k", command],  # '/k' keeps the console open
                 creationflags=subprocess.CREATE_NEW_CONSOLE,
             )
+            time.sleep(1)
             return proc
 
         except Exception as e:
-            _console.log(f"[bold red]Jupyter console launch error:[/bold red] {e}")
-            return None
-
-    def get_audio_device(self):
-        """Finds a loopback audio device for recording; defaults to the first available input device."""
-        try:
-            devices = sd.query_devices()
-            loopback_device = next(
-                (
-                    dev["name"]
-                    for dev in devices
-                    if dev["max_input_channels"] > 0
-                    and (
-                        "loopback" in dev["name"].lower()
-                        or "stereo mix" in dev["name"].lower()
-                    )
-                ),
-                None,
-            )
-
-            if loopback_device:
-                return loopback_device
-
-            _console.log(
-                "[bold yellow]No loopback device found. Using default input.[/bold yellow]"
-            )
-            return (
-                sd.default.device["input"]
-                if isinstance(sd.default.device, dict)
-                else sd.default.device[0]
-            )
-        except Exception as e:
-            _console.log(f"[bold red]Audio error:[/bold red] {e}")
+            _console.log(f"[red]Error launching Jupyter console: {e}[/red]")
             return None

@@ -17,6 +17,3 @@ class PlatformManager:
 
     def open_jupyter_console(self):
         return self._platform.open_jupyter_console()
-
-    def get_audio_device(self):
-        return self._platform.get_audio_device()

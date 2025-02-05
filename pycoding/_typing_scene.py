@@ -1,24 +1,26 @@
 from ._ai import GoogleGenAI
 from ._utils import (
     parse_code,
-    _play_audio_on_cell_execution,
     _is_jupyter_idle,
     _get_audio_length,
 )
 from ._prompts import PromptManager
 from ._platforms import PlatformManager
-import platform
 
+import platform
 import pyautogui
 from pynput.keyboard import Controller
 import time
 import subprocess
 import os
 import threading
-import multiprocessing
+import shutil
+from pathlib import Path
 
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
+
+from moviepy import VideoFileClip, AudioFileClip
 
 from rich.console import Console
 
@@ -84,8 +86,8 @@ class CodingTutorial:
             api_key=eleven_labs_api_key,
         )
 
-        os.makedirs("pycoding_data/audio_files", exist_ok=True)
-        self.audio_path = "pycoding_data/audio_files"
+        os.makedirs(Path("pycoding_data/audio_files"), exist_ok=True)
+        self.audio_path = Path("pycoding_data/audio_files")
         self.recording_process = None
         assert path_info is not None
         self.path_info = path_info
@@ -96,21 +98,25 @@ class CodingTutorial:
         self._prompt_manager = PromptManager(language=self.language, topic=self.topic)
         self._platform_manager = PlatformManager(platform.system(), self.language)
 
+        self.time_dict = {}
+
     def _generate_tutorial_code(self):
         _prompt = self._prompt_manager.build_prompt()
         while True:
             _response = self.model_object.send_message(_prompt)
             _console.log(_response)
 
-            if not self.force_approve:
-                _approval = input(f"Do you approve the code snippets? (yes/no): ")
+            if self.force_approve:
+                break
 
-                if _approval.lower() == "yes":
-                    break
+            _approval = input(f"Do you approve the code snippets? (yes/no): ")
 
-                else:
-                    _feedback = input("Provide feedback to improve the response: ")
-                    self.model_object.send_message(_feedback)
+            if _approval.lower() == "yes":
+                break
+
+            else:
+                _feedback = input("Provide feedback to improve the response: ")
+                self.model_object.send_message(_feedback)
 
         _code = parse_code(_response)  # Must return a list of code snippets.
         return _code
@@ -134,9 +140,7 @@ class CodingTutorial:
 
         assert len(code_cells) == len(audio_files)
 
-        # Open jupyter shell.
-
-        # Use PlatformManager
+        # Open Jupyter shell.
         proc = self._platform_manager.open_jupyter_console()
         time.sleep(6)  # Give it time to load.
 
@@ -145,62 +149,59 @@ class CodingTutorial:
 
         self.recording_process = True
 
-        # No need to record the entire screen, we only need to know the window ID.
-        # Start screen recording in a separate thread (recording based on the window ID).
+        # Start screen recording
         recording_thread = threading.Thread(
             target=self._record_window_by_id,
-            args=(window_id, "pycoding_data/screen_recording.mp4", 20),
+            args=(window_id, Path("pycoding_data/screen_recording.mp4"), 20),
         )
         recording_thread.start()
 
         try:
+            prev_end_time = time.time()  # Track previous end time
             for i, cell in enumerate(code_cells):
-                # Type the entire cell's code.
-                if self.narration_type == "parallel":
-                    self._audio_process = multiprocessing.Process(
-                        target=_play_audio_on_cell_execution, args=(audio_files[i],)
-                    )
-                    self._audio_process.start()
+                # Record start time
+                _start = prev_end_time  # Start immediately after the previous segment
+                self.time_dict[str(i)] = {
+                    "Start": _start,
+                    "End": None,
+                    "Audio-Start": None,
+                }
 
-                _in = time.time()
-
+                # Typewrite the code
                 for line in cell.splitlines():
                     for char in line:
                         keyboard.press(char)
                         time.sleep(0.1)
                         keyboard.release(char)
+                    pyautogui.press("enter")  # Execute line
 
-                    pyautogui.press("enter")  # Press Enter to run the line.
-
-                # Only start writing the next command after previous finishes execution.
+                # Wait for execution to finish
                 while not _is_jupyter_idle(proc):
-                    _console.log("In Jupyter Idle block.")
                     time.sleep(0.5)
 
-                _out = time.time()
-                _len = _out - _in
+                _end = time.time()  # Execution end time
+                code_exec_time = _end - _start
 
+                # Calculate audio start & end times
                 _audio_length = _get_audio_length(audio_files[i])
-                _diff = abs(_len - _audio_length)
-
-                _console.log("Code Block came here.")
-
                 if self.narration_type == "parallel":
-                    self._audio_process.join(timeout=(_diff + 10))
-                    if self._audio_process.is_alive():
-                        _console.log(
-                            "Audio process is taking too long. Terminating forcefully."
-                        )
-                        self._audio_process.terminate()
+                    audio_start = _start
+                    final_end = _start + max(code_exec_time, _audio_length) + 10
+                else:  # Narration after execution
+                    audio_start = _end
+                    final_end = _end + _audio_length + 10
 
-                # Play the corresponding audio file after each cell.
-                if self.narration_type == "after":
-                    _play_audio_on_cell_execution(audio_files[i])
+                self.time_dict[str(i)]["Audio-Start"] = audio_start
+                self.time_dict[str(i)]["End"] = final_end  # Assign final_end as End
+
+                prev_end_time = final_end  # Update for the next snippet
 
         finally:
-            # End the screen recording.
+            # End recording
             self._end_screen_recording()
             recording_thread.join()
+
+            self._overlay_audio_on_video()
 
     def _generate_audio_file(self, code_cells: list):
         """Generate individual audio files for each code snippet."""
@@ -231,14 +232,16 @@ class CodingTutorial:
                 _text = _response.strip()
                 _console.log(_text)
 
-                if not self.force_approve:
-                    _approve = input("Do you approve the explanation? (yes/no)")
+                if self.force_approve:
+                    break
 
-                    if _approve == "yes":
-                        break
-                    else:
-                        _feedback = input("What feedback do you have? ")
-                        self.model_object.send_message(_feedback)
+                _approve = input("Do you approve the explanation? (yes/no)")
+
+                if _approve == "yes":
+                    break
+                else:
+                    _feedback = input("What feedback do you have? ")
+                    self.model_object.send_message(_feedback)
 
             # Generate audio for the response
             response = self._client.text_to_speech.convert(
@@ -270,108 +273,157 @@ class CodingTutorial:
 
         return audio_files
 
-    def _get_default_audio_device(self):
-        """
-        Detects the default audio device using PulseAudio.
-        Returns the device name if found, else None.
-        """
-        # Use PlatformManager
-        return self._platform_manager.get_audio_device()
-
     def _record_window_by_id(self, window_id: str, output_filename: str, fps: int = 20):
-        """Records a specific window region along with audio, supporting multiple platforms."""
+        """Records a specific window region along with audio, supporting Windows, Linux, and macOS."""
 
         coords = self._get_window_coordinates_by_id(window_id)
         if not coords:
-            _console.log("Failed to get window coordinates.")
+            _console.log("[red]Error: Could not determine window coordinates.[/red]")
             return
 
         x, y, width, height = coords
 
-        # Adjust the region slightly to avoid UI glitches
+        # Adjust region slightly to avoid UI glitches
         x += 1
         y += 1
         width -= 2
         height -= 2
 
-        # Detect platform
         system = platform.system()
 
-        # Set platform-specific configurations
+        # Ensure FFmpeg is installed
+        if not shutil.which("ffmpeg"):
+            _console.log("[red]Error: FFmpeg is not installed or not in PATH.[/red]")
+            return
+
+        # Platform-Specific Configuration
         if system == "Linux":
-            screen_grab = "x11grab"
-            audio_capture = "pulse"
+            screen_grab = "x11grab"  # More modern alternative to x11grab
             display = os.getenv("DISPLAY", ":0")
             screen_input = f"{display}.0+{x},{y}"
-            audio_device = self._get_default_audio_device()  # Detect PulseAudio device
             frame_rate_flag = "-r"
 
         elif system == "Windows":
             screen_grab = "gdigrab"
-            audio_capture = "dshow"
             screen_input = "desktop"
-            audio_device = (
-                self._get_default_audio_device()
-            )  # Detect DirectShow audio device
             frame_rate_flag = "-framerate"
 
         elif system == "Darwin":  # macOS
             screen_grab = "avfoundation"
-            audio_capture = "avfoundation"
-            screen_input = "1"  # Capture main screen (use `ffmpeg -f avfoundation -list_devices true -i ""` to check)
-            audio_device = "1"  # Replace with actual audio device index
+            screen_input = "1"  # Default main screen
             frame_rate_flag = "-r"
 
         else:
-            _console.log("Unsupported platform.")
+            _console.log("[red]Error: Unsupported platform.[/red]")
             return
 
-        # Build FFmpeg command
+        # Build the FFmpeg command in correct order
         ffmpeg_command = [
             "ffmpeg",
             "-f",
-            screen_grab,  # Screen capture method
+            screen_grab,
             frame_rate_flag,
-            str(fps),  # Frame rate
+            str(fps),
             "-video_size",
-            f"{width}x{height}",  # Capture only the selected region
-            "-offset_x",
-            str(x),
-            "-offset_y",
-            str(y) if system == "Windows" else "",  # Window position (Windows only)
+            f"{width}x{height}",
             "-i",
-            screen_input,  # Input screen source
-            "-f",
-            audio_capture,  # Audio capture method
-            "-i",
-            audio_device,  # Audio input device
+            screen_input,
             "-c:v",
-            "libx264",  # Video codec
+            "h264",
             "-preset",
-            "ultrafast",  # Reduce encoding delay
-            "-c:a",
-            "aac",  # Audio codec
-            "-y",  # Overwrite output file
-            output_filename,  # Output file
+            "ultrafast",
         ]
 
-        # Remove empty strings from command list
-        ffmpeg_command = [arg for arg in ffmpeg_command if arg]
+        if system == "Linux":
+            ffmpeg_command.extend(["-c:v", "libx264"])
+        else:
+            ffmpeg_command.extend(
+                [
+                    "-c:v",
+                    "mpeg4",  # Use MPEG-4 codec instead of x264
+                    "-q:v",
+                    "5",  # Set quality (lower is better, adjust as needed)
+                ]
+            )
 
-        # Force audio-video sync
-        ffmpeg_command.extend(["-async", "1", "-vsync", "1"])
+        # Add audio recording if available
 
-        _console.log(f"Recording on {system} with command: {' '.join(ffmpeg_command)}")
+        # Windows-specific fixes
+        if system == "Windows":
+            ffmpeg_command.insert(5, "-offset_x")
+            ffmpeg_command.insert(6, str(x))
+            ffmpeg_command.insert(7, "-offset_y")
+            ffmpeg_command.insert(8, str(y))
 
-        # Start recording using FFmpeg
-        self.ffmpeg_process = subprocess.Popen(ffmpeg_command)
+        ffmpeg_command.extend(["-fps_mode", "passthrough"])
+        ffmpeg_command.extend(["-movflags", "+faststart"])
+        ffmpeg_command.extend(["-y", str(output_filename)])
+
+        _console.log(
+            f"Executing FFmpeg command:\n[cyan]{' '.join(ffmpeg_command)}[/cyan]"
+        )
+
+        # Start recording
+        try:
+            self.ffmpeg_process = subprocess.Popen(ffmpeg_command)
+
+        except Exception as e:
+            _console.log(f"[red]Error: Failed to start recording: {e}[/red]")
 
     def _end_screen_recording(self):
         """End the screen recording."""
         self.recording_process = False
         if self.ffmpeg_process:
-            self.ffmpeg_process.terminate()  # Gracefully stops ffmpeg
+            self.ffmpeg_process.terminate()  # Gracefully stops ffmpeg.
             self.ffmpeg_process.wait()
+
+    def _overlay_audio_on_video(self):
+        """
+        Overlays narration audio on the recorded screen video using MoviePy.
+
+        - Extracts "Audio-Start" times from self.time_dict.
+        - Ensures proper synchronization of narration with screen recording.
+        - Deletes `screen_recording.mp4` after processing.
+        - Outputs `final_tutorial.mp4`.
+        """
+
+        video_path = Path("pycoding_data/screen_recording.mp4")
+        output_path = Path("pycoding_data/final_tutorial.mp4")
+
+        if not video_path.exists():
+            _console.log("[red]Error: Screen recording file not found![/red]")
+            return
+
+        video = VideoFileClip(str(video_path))
+
+        for key, timing in self.time_dict.items():
+            audio_file = self.audio_path / f"snippet_{key}.mp3"
+            if not audio_file.exists():
+                _console.log(
+                    f"[yellow]Warning: Missing narration file {audio_file}[/yellow]"
+                )
+                continue
+
+            # Extract the relevant portion of the video
+            clip_start = timing["Start"] - self.time_dict["0"]["Start"]
+            clip_end = timing["End"] - self.time_dict["0"]["Start"]
+
+            video_clip = video.subclip(clip_start, clip_end)
+
+            # Extract the corresponding audio
+            audio_clip = AudioFileClip(str(audio_file)).subclip(0, video_clip.duration)
+
+            # Add the audio to the video
+            final_clip = video_clip.set_audio(audio_clip)
+
+            # Export final video
+            final_clip.write_videofile(str(output_path), codec="libx264", fps=video.fps)
+
+        # Delete screen recording after successful processing
+        video_path.unlink(missing_ok=True)
+        _console.log(f"[yellow]Deleted {video_path} after processing.[/yellow]")
+
+        _console.log(f"[green]Final tutorial saved to {output_path}[/green]")
 
     def make_tutorial(self):
         """Typewrite, Synchronize sound, Screen Record."""

@@ -8,5 +8,7 @@ rich
 elevenlabs
 jupyter
 ipython
-sounddevice
+pywin32
+pycaw
+comtypes
 pygetwindow

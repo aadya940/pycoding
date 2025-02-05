@@ -66,28 +66,3 @@ class LinuxManager:
             ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language],
         )
         return proc
-
-    def get_audio_device(self):
-        try:
-            # Query available audio devices using pactl (PulseAudio control tool)
-            result = subprocess.run(
-                ["pactl", "list", "short", "sources"],
-                stdout=subprocess.PIPE,
-                text=True,
-                check=True,
-            )
-            output = result.stdout
-
-            # Search for a monitor source (usually used for screen recording)
-            for line in output.splitlines():
-                if "monitor" in line:
-                    # Extract the device name (1st column)
-                    return line.split()[1]
-
-            # Fallback to a default device if no monitor is found
-            _console.log("No monitor source found. Falling back to the default device.")
-            return "default"
-
-        except Exception as e:
-            _console.log(f"Error detecting audio device: {e}")
-            return None
