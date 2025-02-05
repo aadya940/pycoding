@@ -8,7 +8,6 @@ rich
 elevenlabs
 jupyter
 ipython
-pywin32
 pycaw
 comtypes
 pygetwindow

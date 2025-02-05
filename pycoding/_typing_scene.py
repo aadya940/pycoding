@@ -20,7 +20,7 @@ from pathlib import Path
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
-from moviepy import VideoFileClip, AudioFileClip
+from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 
 from rich.console import Console
 
@@ -355,7 +355,6 @@ class CodingTutorial:
             ffmpeg_command.insert(7, "-offset_y")
             ffmpeg_command.insert(8, str(y))
 
-        ffmpeg_command.extend(["-fps_mode", "passthrough"])
         ffmpeg_command.extend(["-movflags", "+faststart"])
         ffmpeg_command.extend(["-y", str(output_filename)])
 
@@ -380,15 +379,11 @@ class CodingTutorial:
     def _overlay_audio_on_video(self):
         """
         Overlays narration audio on the recorded screen video using MoviePy.
-
-        - Extracts "Audio-Start" times from self.time_dict.
-        - Ensures proper synchronization of narration with screen recording.
-        - Deletes `screen_recording.mp4` after processing.
-        - Outputs `final_tutorial.mp4`.
+        Handles timing synchronization between video and audio clips.
         """
-
         video_path = Path("pycoding_data/screen_recording.mp4")
         output_path = Path("pycoding_data/final_tutorial.mp4")
+        temp_clips = []
 
         if not video_path.exists():
             _console.log("[red]Error: Screen recording file not found![/red]")
@@ -396,33 +391,66 @@ class CodingTutorial:
 
         video = VideoFileClip(str(video_path))
 
-        for key, timing in self.time_dict.items():
+        # Create a list to store all clips with their audio
+        final_clips = []
+
+        for key in sorted(self.time_dict.keys(), key=int):
+            timing = self.time_dict[key]
             audio_file = self.audio_path / f"snippet_{key}.mp3"
+
             if not audio_file.exists():
                 _console.log(
                     f"[yellow]Warning: Missing narration file {audio_file}[/yellow]"
                 )
                 continue
 
-            # Extract the relevant portion of the video
-            clip_start = timing["Start"] - self.time_dict["0"]["Start"]
-            clip_end = timing["End"] - self.time_dict["0"]["Start"]
+            # Calculate relative timestamps
+            start_time = timing["Start"] - self.time_dict["0"]["Start"]
+            end_time = min(timing["End"] - self.time_dict["0"]["Start"], video.duration)
 
-            video_clip = video.subclip(clip_start, clip_end)
+            # Safety check for timestamps
+            if start_time >= video.duration:
+                _console.log(
+                    f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
+                )
+                continue
 
-            # Extract the corresponding audio
-            audio_clip = AudioFileClip(str(audio_file)).subclip(0, video_clip.duration)
+            # Extract video segment
+            try:
+                video_segment = video.subclipped(start_time, end_time)
+            except Exception as e:
+                _console.log(f"[red]Error processing clip {key}: {e}[/red]")
+                continue
 
-            # Add the audio to the video
-            final_clip = video_clip.set_audio(audio_clip)
+            # Add audio
+            audio_clip = AudioFileClip(str(audio_file))
 
-            # Export final video
-            final_clip.write_videofile(str(output_path), codec="libx264", fps=video.fps)
+            # If narration is longer than video segment, extend video segment duration
+            if audio_clip.duration > video_segment.duration:
+                # Freeze last frame for remaining audio duration
+                video_segment = video_segment.with_duration(audio_clip.duration)
 
-        # Delete screen recording after successful processing
+            # Combine video and audio
+            final_clips.append(video_segment.with_audio(audio_clip))
+
+        # Concatenate all clips
+        if final_clips:
+            final_video = concatenate_videoclips(final_clips)
+
+            # Write final video
+            try:
+                final_video.write_videofile(
+                    str(output_path), codec="libx264", fps=video.fps, audio_codec="aac"
+                )
+            except Exception as e:
+                _console.log(f"[red]Error writing final video: {e}[/red]")
+            finally:
+                final_video.close()
+
+        # Clean up
+        video.close()
         video_path.unlink(missing_ok=True)
         _console.log(f"[yellow]Deleted {video_path} after processing.[/yellow]")
-
         _console.log(f"[green]Final tutorial saved to {output_path}[/green]")
 
     def make_tutorial(self):
