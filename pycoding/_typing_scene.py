@@ -167,13 +167,43 @@ class CodingTutorial:
                     "Audio-Start": None,
                 }
 
+                _splitted_cells = cell.splitlines()
+
                 # Typewrite the code
-                for line in cell.splitlines():
-                    for char in line:
+                for idx in range(len(_splitted_cells)):  # FIXED: Use range(len())
+                    indent_gap = None
+
+                    line = _splitted_cells[idx]
+
+                    if "python" in self.language:
+                        # Jupyter console automatically handles indentation.
+                        stripped_line = line.lstrip()
+
+                        next_line = (
+                            _splitted_cells[idx + 1]
+                            if (idx + 1) < len(_splitted_cells)
+                            else None
+                        )
+                        curr_indent = len(line) - len(stripped_line)
+                        if next_line is not None:
+                            next_indent = len(next_line) - len(next_line.lstrip())
+                            indent_gap = next_indent - curr_indent
+
+                    else:
+                        stripped_line = line
+
+                    for char in stripped_line:
                         keyboard.press(char)
                         time.sleep(0.1)
                         keyboard.release(char)
                     pyautogui.press("enter")  # Execute line
+
+                    if indent_gap is not None:
+                        if indent_gap < 0:
+                            for _ in range(-1 * indent_gap):
+                                pyautogui.press("backspace")
+
+                pyautogui.hotkey("alt", "enter")
 
                 # Wait for execution to finish
                 while not _is_jupyter_idle(proc):
@@ -284,8 +314,8 @@ class CodingTutorial:
         x, y, width, height = coords
 
         # Adjust region slightly to avoid UI glitches
-        x += 1
-        y += 1
+        x += 2
+        y += 2
         width -= 2
         height -= 2
 

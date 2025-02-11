@@ -1,8 +1,6 @@
 import subprocess
 from rich.console import Console
 
-_console = Console()
-
 
 class LinuxManager:
     def __init__(self, language):
