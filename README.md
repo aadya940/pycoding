@@ -40,7 +40,7 @@ This command will produce a fully automated programming tutorial, including both
 ## **Examples**
 
 ### **NDArray Operations in NumPy**  
-🔗 [Example Tutorial](https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9)  
+🔗 [Example Tutorial](https://github.com/user-attachments/assets/39f2cc45-4c08-46dd-bbe6-6519c0331f2c)  
 
 ---
 
