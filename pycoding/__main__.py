@@ -45,8 +45,9 @@ parser.add_argument(
 parser.add_argument(
     "--language",
     type=str,
-    required=False,
-    help="""Programming language of the video. (Ex.: `xcpp17` for C++, `python3` for python)""",
+    required=True,
+    help="""Programming language of the video. (Ex.: `xcpp17` for C++, `python3` for python).
+    Look at `jupyter kernelspec list` command in your terminal.""",
 )
 parser.add_argument(
     "--force-approve",

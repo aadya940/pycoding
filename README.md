@@ -1,69 +1,92 @@
-### Pycoding
+# **Pycoding**
 
-An Agentic Python Library to create fully automated natural looking coding tutorial generation with audio narration. 
+## **Automated Coding Tutorial Generation with Audio Narration**
 
-Supported languages:
+**Pycoding** is an agentic Python library designed to generate fully automated, natural-looking coding tutorials with real-time or post-processed audio narration.
 
-```
-Python
-C/C++
-Julia
-Rust
-Bash
-R
-```
+---
 
-### Code Example
+## **Supported Languages**
+
+Pycoding supports generating tutorials in the following programming languages:
+
+- **Python**  
+- **C/C++**  
+- **Julia**  
+- **Rust**  
+- **Bash**  
+- **R**  
+
+---
+
+## **Usage Example**
+
+To generate a coding tutorial on "Classes in Python in 3 lines" with narration, run the following command:
 
 ```bash
-python3 -m pycoding --topic \
-"Classes in Python in 3 lines." \
---google-api-key  YOUR_GOOGLE_API_KEY \
---elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \
---elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \
---narration-type parallel \
+python3 -m pycoding --topic \  
+"Classes in Python in 3 lines." \  
+--google-api-key YOUR_GOOGLE_API_KEY \  
+--elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \  
+--elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \  
+--narration-type parallel \  
 --language python3
 ```
 
-This will generate a fully automated programming tutorial with narration based on user feedback teaching Neural Networks using Tensorflow.
+This command will produce a fully automated programming tutorial, including both code and narration.
 
-### Examples
+---
 
-NDArrays in Numpy:
+## **Examples**
 
-https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9
+### **NDArray Operations in NumPy**  
+🔗 [Example Tutorial](https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9)  
 
+---
 
-### Supported Flags
+## **Command-Line Flags**
 
-```
---topic : Topic to make coding videos on.
---google-api-key : Google LLM API Key.
---elevenlabs-api-key : Eleven Labs Text to Speech API Key.
---elevenlabs-voice-id : Eleven Labs Voice ID for Text to Speech.
---io-path : Paths to directories you want to consider for code generation.
---narration-type : either `after` or `parallel`. Specifies if  Narration 
-has to happen during or after code typewriting.
---force-approve : Approve all AI responses to `yes` by default.
---language : Programming language of the tutorial. Should be taken from 
-the `jupyter kernelspec list` command.
+| **Flag**                   | **Description** |
+|----------------------------|----------------|
+| `--topic`                  | Topic for the coding tutorial. |
+| `--google-api-key`         | API key for Google LLM. |
+| `--elevenlabs-api-key`     | API key for Eleven Labs Text-to-Speech. |
+| `--elevenlabs-voice-id`    | Voice ID for Eleven Labs narration. |
+| `--io-path`                | Directory paths to consider for code generation. |
+| `--narration-type`         | Narration mode: `parallel` (during typing) or `after` (post-processing). |
+| `--force-approve`          | Automatically approve all AI-generated responses. |
+| `--language`               | Programming language for the tutorial (use `jupyter kernelspec list` for available options). |
+
+---
+
+## **Installation & Setup**
+
+### **Requirements**  
+Ensure you have the following installed before using Pycoding:
+
+- `ffmpeg`  
+- A **Google Generative AI** account  
+- An **Eleven Labs** account  
+- `Jupyter`, `Required Language Jupyter Kernel (Look at README_kernels.md)`.   
+- Linux utilities: `wmctrl`, `xwininfo`, `gnome-terminal`, `jupyter`  
+
+### **Installation**
+
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/pycoding.git
+cd pycoding
+
+# Install dependencies
+python3 -m pip install -r requirements.txt
+
+# Install Library
+python3 -m pip install .
 ```
 
-### Set Up
+---
 
-```
-Requires:
-- ffmpeg.
-- A eleven labs and Google Generative AI Account.
-- Requires IPython.
-- Requires wmctrl, xwininfo, gnome-terminal, jupyter shell commands.
-```
-```
-- Clone.
-- `python3 -m pip install -r requirements.txt`
-- Use :)
-```
-```
-Limitations:
-- Completely Linux Based.
-```
+## **Limitations**
+
+- **Linux Only**: Currently, Pycoding only supports Linux-based environments.
+
