@@ -11,3 +11,4 @@ ipython
 pycaw
 comtypes
 pygetwindow
+moviepy
