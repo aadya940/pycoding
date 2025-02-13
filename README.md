@@ -16,7 +16,13 @@ R
 ### Code Example
 
 ```bash
-python3 -m pycoding --topic "Neural Network using Tensorflow" --io-path X.csv y.csv --google-api-key YOUR_GOOGLE_API_KEY --elevenlabs-api-key YOUR_ELEVENLABS_API_KEY --elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID
+python3 -m pycoding --topic \
+"Classes in Python in 3 lines." \
+--google-api-key  YOUR_GOOGLE_API_KEY \
+--elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \
+--elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \
+--narration-type parallel \
+--language python3
 ```
 
 This will generate a fully automated programming tutorial with narration based on user feedback teaching Neural Networks using Tensorflow.
@@ -39,6 +45,8 @@ https://github.com/user-attachments/assets/09a1bf87-8553-4999-ad4f-bd889896fbb9
 --narration-type : either `after` or `parallel`. Specifies if  Narration 
 has to happen during or after code typewriting.
 --force-approve : Approve all AI responses to `yes` by default.
+--language : Programming language of the tutorial. Should be taken from 
+the `jupyter kernelspec list` command.
 ```
 
 ### Set Up

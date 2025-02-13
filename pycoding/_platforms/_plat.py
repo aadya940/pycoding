@@ -2,6 +2,10 @@ from ._linux import LinuxManager
 
 
 class PlatformManager:
+    """Manage platform specific commands.
+    Currently only supporting Linux and Windows.
+    """
+
     def __init__(self, platform, language):
         if platform == "Linux":
             self._platform = LinuxManager(language=language)
@@ -14,3 +18,6 @@ class PlatformManager:
 
     def open_jupyter_console(self):
         return self._platform.open_jupyter_console()
+
+    def make_fullscreen(self, window_id):
+        return self._platform.make_fullscreen(window_id=window_id)

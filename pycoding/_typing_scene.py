@@ -126,9 +126,7 @@ class CodingTutorial:
         return self._platform_manager.get_window_id()
 
     def _get_window_coordinates_by_id(self, window_id: str):
-        """
-        Get the coordinates of a window by its ID using xwininfo.
-        """
+        """Get the coordinates of a window by its ID using xwininfo."""
         # Use PlatformManager
         return self._platform_manager.get_coordinates_using_id(window_id)
 
@@ -230,6 +228,7 @@ class CodingTutorial:
             # End recording
             self._end_screen_recording()
             recording_thread.join()
+            subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
 
             self._overlay_audio_on_video()
 
@@ -242,20 +241,23 @@ class CodingTutorial:
 
             {code_snippet}
             
-            
             Ensure the explanation:
             1. Is no longer than 30 seconds when spoken.
             2. Uses simple English without reading the code directly.
             3. Focuses on describing what the code does in plain language, 
-            as if explaining to someone unfamiliar with coding.
-            4. Only include the response.
-            5. Don't use short forms and don't address problematic words.
-            (example: don't address `vec_add`, `vec_sub`, address
-            `vec_1` as `vector 1` and so on ... Hope you get the point.)
-            6. Address numbers with words, example `1` as `one`. Also address
-            arrays with words, example [1, 2, 3] as `list with elements one, two
-            and three.`
-            7. Explain the philosophy behind different objects in the code.
+               as if explaining to someone unfamiliar with coding.
+            4. Uses the present tense consistently.
+            5. Only includes the response.
+            6. Does not use short forms and does not address problematic words.
+               (Example: Do not address `vec_add`, `vec_sub`; instead, address 
+               `vec_1` as `vector one` and so on.)
+            7. Represents numbers with words, for example, `1` as `one`. Also, 
+               describes arrays with words, for example, `[1, 2, 3]` as 
+               `a list with elements one, two, and three.`
+            8. Explains the philosophy behind different objects in the code.
+            9. Avoids programming-specific language that text-to-speech AI 
+               struggles to pronounce. For example, do not say `__init__`; say 
+               `initialization` instead.
             """
             while True:
                 _response = self.model_object.send_message(_prompt)
@@ -305,7 +307,8 @@ class CodingTutorial:
 
     def _record_window_by_id(self, window_id: str, output_filename: str, fps: int = 20):
         """Records a specific window region along with audio, supporting Windows, Linux, and macOS."""
-
+        self._platform_manager.make_fullscreen(window_id)
+        time.sleep(2)
         coords = self._get_window_coordinates_by_id(window_id)
         if not coords:
             _console.log("[red]Error: Could not determine window coordinates.[/red]")

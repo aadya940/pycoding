@@ -1,10 +1,9 @@
 import subprocess
-from rich.console import Console
 
 
 class LinuxManager:
     def __init__(self, language):
-        # Check if `wmctrl` and `xwininfo` and `pactl` are present or not.
+        # TODO, Check if `wmctrl` and `xwininfo` are present or not.
         self.language = language
 
     def get_window_id(self):
@@ -58,6 +57,18 @@ class LinuxManager:
         except Exception as e:
             print(f"Error fetching window coordinates: {e}")
             return None
+
+    def make_fullscreen(self, window_id):
+        """Resizes the specified window to 1920x1080 (16:9) aspect ratio
+        as needed by popular platforms like Udemy, YouTube etc."""
+        try:
+            # Execute wmctrl command to resize the window
+            subprocess.run(
+                ["wmctrl", "-i", "-r", window_id, "-b", "toggle,fullscreen"], check=True
+            )
+            print(f"Window {window_id} resized to 1920x1080 (16:9)")
+        except subprocess.CalledProcessError as e:
+            print(f"Error resizing window {window_id}: {e}")
 
     def open_jupyter_console(self):
         proc = subprocess.Popen(
