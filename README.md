@@ -90,3 +90,6 @@ python3 -m pip install .
 
 - **Linux Only**: Currently, Pycoding only supports Linux-based environments.
 
+## Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
