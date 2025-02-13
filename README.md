@@ -39,7 +39,7 @@ This command will produce a fully automated programming tutorial, including both
 
 ## **Examples**
 
-### **Classes in Python in 3 Lines**  
+### **Decorators in Python in 3 Lines**  
 🔗 [Example Tutorial](https://github.com/user-attachments/assets/39f2cc45-4c08-46dd-bbe6-6519c0331f2c)  
 
 ---
