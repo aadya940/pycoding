@@ -215,6 +215,9 @@ class CodingTutorial:
                 if self.narration_type == "parallel":
                     audio_start = _start
                     final_end = _start + max(code_exec_time, _audio_length) + 10
+                    __diff = final_end - (_start + code_exec_time)
+                    if __diff > 0:
+                        time.sleep(__diff)
                 else:  # Narration after execution
                     audio_start = _end
                     final_end = _end + _audio_length + 10
