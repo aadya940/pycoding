@@ -260,6 +260,8 @@ class CodingTutorial:
             9. End with a brief summary or key takeaway
             10. Don't use any type of Quotes or Markdown formatting. Also, ignore unnecessary explanations
             like `print` statements, `comments` etc.
+            11. Refer to variable names or special characters by their names. For example, `_` as `underscore`,
+            `is_variable` as `is underscore variable`.
 
             Format your response as a natural, flowing explanation
             """
