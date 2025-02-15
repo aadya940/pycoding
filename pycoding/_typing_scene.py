@@ -266,20 +266,41 @@ class CodingTutorial:
             Format your response as a natural, flowing explanation
             """
             while True:
-                _response = self.model_object.send_message(_prompt)
-                _text = _response.strip()
-                _console.log(_text)
+                try:
+                    # Start a timer for the response
+                    start_time = time.time()
+                    _response = None
 
-                if self.force_approve:
-                    break
+                    while time.time() - start_time < 25:  # 25 second timeout
+                        try:
+                            _response = self.model_object.send_message(_prompt)
+                            break
+                        except Exception as e:
+                            if time.time() - start_time >= 25:
+                                raise TimeoutError("Response timeout")
+                            time.sleep(1)  # Wait before retry
+                            continue
 
-                _approve = input("Do you approve the explanation? (yes/no)")
+                    if _response is None:
+                        raise TimeoutError("Response timeout")
 
-                if _approve == "yes":
-                    break
-                else:
-                    _feedback = input("What feedback do you have? ")
-                    self.model_object.send_message(_feedback)
+                    _text = _response.strip()
+                    _console.log(_text)
+
+                    if self.force_approve:
+                        break
+
+                    _approve = input("Do you approve the explanation? (yes/no)")
+
+                    if _approve == "yes":
+                        break
+                    else:
+                        _feedback = input("What feedback do you have? ")
+                        self.model_object.send_message(_feedback)
+
+                except TimeoutError:
+                    _console.log("[yellow]Response timed out, retrying...[/yellow]")
+                    continue
 
             # Generate audio for the response
             response = self._client.text_to_speech.convert(
