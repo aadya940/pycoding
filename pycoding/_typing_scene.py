@@ -240,27 +240,28 @@ class CodingTutorial:
 
         def _generate_audio_per_snippet(code_snippet: str, path: str):
             """Generate audio for one snippet and save it."""
-            _prompt = f"""Write a concise, line-by-line explanation for the following code snippet:
+            _prompt = f"""You are a coding tutor creating a voice narration script. Explain the following code snippet in a 
+            conversational, easy-to-follow way that works well for text-to-speech narration.
 
+            Code to explain:
+            ```
             {code_snippet}
-            
-            Ensure the explanation:
-            1. Is no longer than 30 seconds when spoken.
-            2. Uses simple English without reading the code directly.
-            3. Focuses on describing what the code does in plain language, 
-               as if explaining to someone unfamiliar with coding.
-            4. Uses the present tense consistently.
-            5. Only includes the response.
-            6. Does not use short forms and does not address problematic words.
-               (Example: Do not address `vec_add`, `vec_sub`; instead, address 
-               `vec_1` as `vector one` and so on.)
-            7. Represents numbers with words, for example, `1` as `one`. Also, 
-               describes arrays with words, for example, `[1, 2, 3]` as 
-               `a list with elements one, two, and three.`
-            8. Explains the philosophy behind different objects in the code.
-            9. Avoids programming-specific language that text-to-speech AI 
-               struggles to pronounce. For example, do not say `__init__`; say 
-               `initialization` instead.
+            ```
+
+            Guidelines for your explanation:
+            1. Start with a brief overview of what the code accomplishes
+            2. Break down the explanation into short, clear sentences
+            3. Avoid technical jargon unless necessary, and when used, briefly explain it
+            4. Use natural speech patterns (e.g., "Let's look at...", "Notice how...", "This part is important because...")
+            5. Keep sentences under 20 words for better TTS flow
+            6. Include pauses by using periods and commas strategically
+            7. Avoid special characters or symbols that might confuse TTS
+            8. Use concrete examples or analogies where helpful
+            9. End with a brief summary or key takeaway
+            10. Don't use any type of Quotes or Markdown formatting. Also, ignore unnecessary explanations
+            like `print` statements, `comments` etc.
+
+            Format your response as a natural, flowing explanation
             """
             while True:
                 _response = self.model_object.send_message(_prompt)
