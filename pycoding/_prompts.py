@@ -31,7 +31,11 @@ class PromptManager:
         1. Split the code into multiple ```python your_code ``` blocks.  
         2. Each block should be well-commented, focusing on clarity and explanation.  
         3. Use or consider the following paths and their associated purposes in the code:  
-        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}"""
+        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
+        4. Make sure the code doesn't take more than 5 minutes to run. For example, if you're
+        teaching machine learning with tensorflow, run the model for only one epoch. Hope you
+        get the point.
+        """
 
     def _cpp_prompt(self):
         return f"""Write C++ code snippets to explain the following topic. 

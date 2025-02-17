@@ -154,6 +154,11 @@ class CodingTutorial:
         )
         recording_thread.start()
 
+        matplotlib_thread = threading.Thread(
+            target=self._platform_manager.detect_and_close_matplotlib_window,
+        )
+        matplotlib_thread.start()
+
         try:
             prev_end_time = time.time()  # Track previous end time
             for i, cell in enumerate(code_cells):
@@ -231,6 +236,8 @@ class CodingTutorial:
             # End recording
             self._end_screen_recording()
             recording_thread.join()
+            matplotlib_thread.join()
+
             subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
 
             self._overlay_audio_on_video()

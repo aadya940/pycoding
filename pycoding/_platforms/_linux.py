@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 
 class LinuxManager:
@@ -75,3 +76,28 @@ class LinuxManager:
             ["gnome-terminal", "--", "jupyter", "console", "--kernel", self.language],
         )
         return proc
+
+    def detect_and_close_matplotlib_window(self):
+        """Detect if matplotlib window is open and return its window ID."""
+        try:
+            # Run wmctrl to get all windows
+            result = subprocess.run(
+                ["wmctrl", "-lp"], stdout=subprocess.PIPE, text=True, check=True
+            )
+            output = result.stdout
+
+            # Search for the line containing 'Image Viewer'
+            for line in output.splitlines():
+                if "Image Viewer" in line:
+                    # Extract the window ID (1st field in the output)
+                    parts = line.split()
+                    if len(parts) > 0:
+                        window_id = parts[0]  # Window ID is in the 1st column
+                        # Close the window after 10 seconds.
+                        time.sleep(11)
+                        subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
+            time.sleep(1)
+
+        except Exception as e:
+            print(f"Error detecting matplotlib window: {e}")
+            time.sleep(1)
