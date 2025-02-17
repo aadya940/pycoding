@@ -95,9 +95,15 @@ class LinuxManager:
                         window_id = parts[0]  # Window ID is in the 1st column
                         # Close the window after 10 seconds.
                         time.sleep(11)
-                        subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
+                        self.close_window_by_id(window_id)
             time.sleep(1)
 
         except Exception as e:
             print(f"Error detecting matplotlib window: {e}")
             time.sleep(1)
+
+    def close_window_by_id(self, window_id: str):
+        try:
+            subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
+        except Exception as e:
+            print(f"Error closing window {window_id}: {e}")

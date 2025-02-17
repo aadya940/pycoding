@@ -96,3 +96,31 @@ class PromptManager:
         {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
         4. Ensure compatibility with `Evcxr` rust kernel.
         """
+
+    def get_audio_prompt(self, code_snippet):
+        _prompt = f"""You are a coding tutor creating a voice narration script. Explain the following code snippet in a 
+            conversational, easy-to-follow way that works well for text-to-speech narration.
+
+            Code to explain:
+            ```
+            {code_snippet}
+            ```
+
+            Guidelines for your explanation:
+            1. Start with a brief overview of what the code accomplishes
+            2. Break down the explanation into short, clear sentences
+            3. Avoid technical jargon unless necessary, and when used, briefly explain it
+            4. Use natural speech patterns (e.g., "Let's look at...", "Notice how...", "This part is important because...")
+            5. Keep sentences under 20 words for better TTS flow
+            6. Include pauses by using periods and commas strategically
+            7. Avoid special characters or symbols that might confuse TTS
+            8. Use concrete examples or analogies where helpful
+            9. End with a brief summary or key takeaway
+            10. Don't use any type of Quotes or Markdown formatting. Also, ignore unnecessary explanations
+            like `print` statements, `comments` etc.
+            11. Refer to variable names or special characters by their names. For example, `_` as `underscore`,
+            `is_variable` as `is underscore variable`.
+
+            Format your response as a natural, flowing explanation
+            """
+        return _prompt

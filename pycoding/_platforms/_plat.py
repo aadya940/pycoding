@@ -21,3 +21,10 @@ class PlatformManager:
 
     def make_fullscreen(self, window_id):
         return self._platform.make_fullscreen(window_id=window_id)
+    
+    def close_window_by_id(self, window_id: str):
+        return self._platform.close_window_by_id(window_id=window_id)
+
+    def detect_and_close_matplotlib_window(self):
+        return self._platform.detect_and_close_matplotlib_window()
+    

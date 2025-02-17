@@ -11,18 +11,16 @@ import platform
 import pyautogui
 from pynput.keyboard import Controller
 import time
-import subprocess
 import os
 import threading
-import shutil
 from pathlib import Path
 
-from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
-
 from rich.console import Console
+
+from ._audio import AudioManager
+from ._video import VideoManager
 
 _console = Console()
 
@@ -100,6 +98,15 @@ class CodingTutorial:
 
         self.time_dict = {}
 
+        self.video_manager = VideoManager(self._platform_manager)
+        self.audio_manager = AudioManager(
+            self._client,
+            self._prompt_manager,
+            self.model_object,
+            self.voice_object,
+            force_approve,
+        )
+
     def _generate_tutorial_code(self):
         _prompt = self._prompt_manager.build_prompt()
         while True:
@@ -130,26 +137,9 @@ class CodingTutorial:
         # Use PlatformManager
         return self._platform_manager.get_coordinates_using_id(window_id)
 
-    def _main(self):
-        # Generate Code Cells.
-        code_cells = self._generate_tutorial_code()
-        audio_files = self._generate_audio_file(code_cells)
-        keyboard = Controller()
-
-        assert len(code_cells) == len(audio_files)
-
-        # Open Jupyter shell.
-        proc = self._platform_manager.open_jupyter_console()
-        time.sleep(6)  # Give it time to load.
-
-        window_id = self._get_jupyter_window_id()
-        _console.log(f"Window ID for the Jupyter Console: {window_id}")
-
-        self.recording_process = True
-
-        # Start screen recording
+    def _start_background_threads(self, window_id: str):
         recording_thread = threading.Thread(
-            target=self._record_window_by_id,
+            target=self.video_manager.record_window,
             args=(window_id, Path("pycoding_data/screen_recording.mp4"), 20),
         )
         recording_thread.start()
@@ -158,367 +148,118 @@ class CodingTutorial:
             target=self._platform_manager.detect_and_close_matplotlib_window,
         )
         matplotlib_thread.start()
+        return recording_thread, matplotlib_thread
 
-        try:
-            prev_end_time = time.time()  # Track previous end time
-            for i, cell in enumerate(code_cells):
-                # Record start time
-                _start = prev_end_time  # Start immediately after the previous segment
-                self.time_dict[str(i)] = {
-                    "Start": _start,
-                    "End": None,
-                    "Audio-Start": None,
-                }
+    def _join_threads(
+        self, recording_thread: threading.Thread, matplotlib_thread: threading.Thread
+    ):
+        recording_thread.join()
+        matplotlib_thread.join()
 
-                _splitted_cells = cell.splitlines()
+    def _type_code(self, code_cells, keyboard, proc):
+        """Handle code typing and execution."""
+        time_dict = {}
+        prev_end_time = time.time()
 
-                # Typewrite the code
-                for idx in range(len(_splitted_cells)):  # FIXED: Use range(len())
-                    indent_gap = None
+        for i, cell in enumerate(code_cells):
+            # Record start time
+            _start = prev_end_time  # Start immediately after the previous segment
+            time_dict[str(i)] = {
+                "Start": _start,
+                "End": None,
+                "Audio-Start": None,
+            }
 
-                    line = _splitted_cells[idx]
+            _splitted_cells = cell.splitlines()
 
-                    if "python" in self.language:
-                        # Jupyter console automatically handles indentation.
-                        stripped_line = line.lstrip()
+            # Typewrite the code
+            for idx in range(len(_splitted_cells)):  # FIXED: Use range(len())
+                indent_gap = None
 
-                        next_line = (
-                            _splitted_cells[idx + 1]
-                            if (idx + 1) < len(_splitted_cells)
-                            else None
-                        )
-                        curr_indent = len(line) - len(stripped_line)
-                        if next_line is not None:
-                            next_indent = len(next_line) - len(next_line.lstrip())
-                            indent_gap = next_indent - curr_indent
+                line = _splitted_cells[idx]
 
-                    else:
-                        stripped_line = line
+                if "python" in self.language:
+                    # Jupyter console automatically handles indentation.
+                    stripped_line = line.lstrip()
 
-                    for char in stripped_line:
-                        keyboard.press(char)
-                        time.sleep(0.1)
-                        keyboard.release(char)
-                    pyautogui.press("enter")  # Execute line
+                    next_line = (
+                        _splitted_cells[idx + 1]
+                        if (idx + 1) < len(_splitted_cells)
+                        else None
+                    )
+                    curr_indent = len(line) - len(stripped_line)
+                    if next_line is not None:
+                        next_indent = len(next_line) - len(next_line.lstrip())
+                        indent_gap = next_indent - curr_indent
 
-                    if indent_gap is not None:
-                        if indent_gap < 0:
-                            for _ in range(-1 * indent_gap):
-                                pyautogui.press("backspace")
+                else:
+                    stripped_line = line
 
-                pyautogui.hotkey("alt", "enter")
+                for char in stripped_line:
+                    keyboard.press(char)
+                    time.sleep(0.1)
+                    keyboard.release(char)
+                pyautogui.press("enter")  # Execute line
 
-                # Wait for execution to finish
-                while not _is_jupyter_idle(proc):
-                    time.sleep(0.5)
+                if indent_gap is not None:
+                    if indent_gap < 0:
+                        for _ in range(-1 * indent_gap):
+                            pyautogui.press("backspace")
 
-                _end = time.time()  # Execution end time
-                code_exec_time = _end - _start
+            pyautogui.hotkey("alt", "enter")
 
-                # Calculate audio start & end times
-                _audio_length = _get_audio_length(audio_files[i])
-                if self.narration_type == "parallel":
-                    audio_start = _start
-                    final_end = _start + max(code_exec_time, _audio_length) + 10
-                    __diff = final_end - (_start + code_exec_time)
-                    if __diff > 0:
-                        time.sleep(__diff)
-                else:  # Narration after execution
-                    audio_start = _end
-                    final_end = _end + _audio_length + 10
+            # Wait for execution to finish
+            while not _is_jupyter_idle(proc):
+                time.sleep(0.5)
 
-                self.time_dict[str(i)]["Audio-Start"] = audio_start
-                self.time_dict[str(i)]["End"] = final_end  # Assign final_end as End
+            _end = time.time()  # Execution end time
+            code_exec_time = _end - _start
 
-                prev_end_time = final_end  # Update for the next snippet
-
-        finally:
-            # End recording
-            self._end_screen_recording()
-            recording_thread.join()
-            matplotlib_thread.join()
-
-            subprocess.run(["wmctrl", "-i", "-c", window_id], check=True)
-
-            self._overlay_audio_on_video()
-
-    def _generate_audio_file(self, code_cells: list):
-        """Generate individual audio files for each code snippet."""
-
-        def _generate_audio_per_snippet(code_snippet: str, path: str):
-            """Generate audio for one snippet and save it."""
-            _prompt = f"""You are a coding tutor creating a voice narration script. Explain the following code snippet in a 
-            conversational, easy-to-follow way that works well for text-to-speech narration.
-
-            Code to explain:
-            ```
-            {code_snippet}
-            ```
-
-            Guidelines for your explanation:
-            1. Start with a brief overview of what the code accomplishes
-            2. Break down the explanation into short, clear sentences
-            3. Avoid technical jargon unless necessary, and when used, briefly explain it
-            4. Use natural speech patterns (e.g., "Let's look at...", "Notice how...", "This part is important because...")
-            5. Keep sentences under 20 words for better TTS flow
-            6. Include pauses by using periods and commas strategically
-            7. Avoid special characters or symbols that might confuse TTS
-            8. Use concrete examples or analogies where helpful
-            9. End with a brief summary or key takeaway
-            10. Don't use any type of Quotes or Markdown formatting. Also, ignore unnecessary explanations
-            like `print` statements, `comments` etc.
-            11. Refer to variable names or special characters by their names. For example, `_` as `underscore`,
-            `is_variable` as `is underscore variable`.
-
-            Format your response as a natural, flowing explanation
-            """
-            while True:
-                try:
-                    # Start a timer for the response
-                    start_time = time.time()
-                    _response = None
-
-                    while time.time() - start_time < 25:  # 25 second timeout
-                        try:
-                            _response = self.model_object.send_message(_prompt)
-                            break
-                        except Exception as e:
-                            if time.time() - start_time >= 25:
-                                raise TimeoutError("Response timeout")
-                            time.sleep(1)  # Wait before retry
-                            continue
-
-                    if _response is None:
-                        raise TimeoutError("Response timeout")
-
-                    _text = _response.strip()
-                    _console.log(_text)
-
-                    if self.force_approve:
-                        break
-
-                    _approve = input("Do you approve the explanation? (yes/no)")
-
-                    if _approve == "yes":
-                        break
-                    else:
-                        _feedback = input("What feedback do you have? ")
-                        self.model_object.send_message(_feedback)
-
-                except TimeoutError:
-                    _console.log("[yellow]Response timed out, retrying...[/yellow]")
-                    continue
-
-            # Generate audio for the response
-            response = self._client.text_to_speech.convert(
-                voice_id=self.voice_object["voice_id"],
-                output_format="mp3_22050_32",
-                text=_text,
-                model_id="eleven_turbo_v2_5",
-                voice_settings=VoiceSettings(
-                    stability=0.1,
-                    similarity_boost=1.0,
-                    style=0.5,
-                    use_speaker_boost=True,
-                ),
+            # Calculate audio start & end times
+            _audio_length = _get_audio_length(
+                self.audio_manager.generate_audio_files([cell], self.audio_path)[0]
             )
+            if self.narration_type == "parallel":
+                audio_start = _start
+                final_end = _start + max(code_exec_time, _audio_length) + 10
+                __diff = final_end - (_start + code_exec_time)
+                if __diff > 0:
+                    time.sleep(__diff)
+            else:  # Narration after execution
+                audio_start = _end
+                final_end = _end + _audio_length + 10
 
-            # Save the audio in chunks
-            with open(path, "wb") as f:
-                for chunk in response:
-                    if chunk:
-                        f.write(chunk)
+            time_dict[str(i)]["Audio-Start"] = audio_start
+            time_dict[str(i)]["End"] = final_end  # Assign final_end as End
 
-            _console.log(f"Audio file saved at {path}")
+            prev_end_time = final_end  # Update for the next snippet
 
-        audio_files = []
-        for i, code_cell in enumerate(code_cells):
-            audio_path = os.path.join(self.audio_path, f"snippet_{i}.mp3")
-            _generate_audio_per_snippet(code_cell, audio_path)
-            audio_files.append(audio_path)
+        return time_dict
 
-        return audio_files
-
-    def _record_window_by_id(self, window_id: str, output_filename: str, fps: int = 20):
-        """Records a specific window region along with audio, supporting Windows, Linux, and macOS."""
-        self._platform_manager.make_fullscreen(window_id)
-        time.sleep(2)
-        coords = self._get_window_coordinates_by_id(window_id)
-        if not coords:
-            _console.log("[red]Error: Could not determine window coordinates.[/red]")
-            return
-
-        x, y, width, height = coords
-
-        # Adjust region slightly to avoid UI glitches
-        x += 2
-        y += 2
-        width -= 2
-        height -= 2
-
-        system = platform.system()
-
-        # Ensure FFmpeg is installed
-        if not shutil.which("ffmpeg"):
-            _console.log("[red]Error: FFmpeg is not installed or not in PATH.[/red]")
-            return
-
-        # Platform-Specific Configuration
-        if system == "Linux":
-            screen_grab = "x11grab"  # More modern alternative to x11grab
-            display = os.getenv("DISPLAY", ":0")
-            screen_input = f"{display}.0+{x},{y}"
-            frame_rate_flag = "-r"
-
-        elif system == "Windows":
-            screen_grab = "gdigrab"
-            screen_input = "desktop"
-            frame_rate_flag = "-framerate"
-
-        elif system == "Darwin":  # macOS
-            screen_grab = "avfoundation"
-            screen_input = "1"  # Default main screen
-            frame_rate_flag = "-r"
-
-        else:
-            _console.log("[red]Error: Unsupported platform.[/red]")
-            return
-
-        # Build the FFmpeg command in correct order
-        ffmpeg_command = [
-            "ffmpeg",
-            "-f",
-            screen_grab,
-            frame_rate_flag,
-            str(fps),
-            "-video_size",
-            f"{width}x{height}",
-            "-i",
-            screen_input,
-            "-c:v",
-            "h264",
-            "-preset",
-            "ultrafast",
-        ]
-
-        if system == "Linux":
-            ffmpeg_command.extend(["-c:v", "libx264"])
-        else:
-            ffmpeg_command.extend(
-                [
-                    "-c:v",
-                    "mpeg4",  # Use MPEG-4 codec instead of x264
-                    "-q:v",
-                    "5",  # Set quality (lower is better, adjust as needed)
-                ]
-            )
-
-        # Add audio recording if available
-
-        # Windows-specific fixes
-        if system == "Windows":
-            ffmpeg_command.insert(5, "-offset_x")
-            ffmpeg_command.insert(6, str(x))
-            ffmpeg_command.insert(7, "-offset_y")
-            ffmpeg_command.insert(8, str(y))
-
-        ffmpeg_command.extend(["-movflags", "+faststart"])
-        ffmpeg_command.extend(["-y", str(output_filename)])
-
-        _console.log(
-            f"Executing FFmpeg command:\n[cyan]{' '.join(ffmpeg_command)}[/cyan]"
+    def _main(self):
+        # Generate code and audio
+        code_cells = self._generate_tutorial_code()
+        audio_files = self.audio_manager.generate_audio_files(
+            code_cells, self.audio_path
         )
 
-        # Start recording
+        # Setup and start recording
+        keyboard = Controller()
+        proc = self._platform_manager.open_jupyter_console()
+        time.sleep(6)
+
+        window_id = self._get_jupyter_window_id()
+        recording_thread, matplotlib_thread = self._start_background_threads(window_id)
+
         try:
-            self.ffmpeg_process = subprocess.Popen(ffmpeg_command)
-
-        except Exception as e:
-            _console.log(f"[red]Error: Failed to start recording: {e}[/red]")
-
-    def _end_screen_recording(self):
-        """End the screen recording."""
-        self.recording_process = False
-        if self.ffmpeg_process:
-            self.ffmpeg_process.terminate()  # Gracefully stops ffmpeg.
-            self.ffmpeg_process.wait()
-
-    def _overlay_audio_on_video(self):
-        """
-        Overlays narration audio on the recorded screen video using MoviePy.
-        Handles timing synchronization between video and audio clips.
-        """
-        video_path = Path("pycoding_data/screen_recording.mp4")
-        output_path = Path("pycoding_data/final_tutorial.mp4")
-        temp_clips = []
-
-        if not video_path.exists():
-            _console.log("[red]Error: Screen recording file not found![/red]")
-            return
-
-        video = VideoFileClip(str(video_path))
-
-        # Create a list to store all clips with their audio
-        final_clips = []
-
-        for key in sorted(self.time_dict.keys(), key=int):
-            timing = self.time_dict[key]
-            audio_file = self.audio_path / f"snippet_{key}.mp3"
-
-            if not audio_file.exists():
-                _console.log(
-                    f"[yellow]Warning: Missing narration file {audio_file}[/yellow]"
-                )
-                continue
-
-            # Calculate relative timestamps
-            start_time = timing["Start"] - self.time_dict["0"]["Start"]
-            end_time = min(timing["End"] - self.time_dict["0"]["Start"], video.duration)
-
-            # Safety check for timestamps
-            if start_time >= video.duration:
-                _console.log(
-                    f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
-                )
-                continue
-
-            # Extract video segment
-            try:
-                video_segment = video.subclipped(start_time, end_time)
-            except Exception as e:
-                _console.log(f"[red]Error processing clip {key}: {e}[/red]")
-                continue
-
-            # Add audio
-            audio_clip = AudioFileClip(str(audio_file))
-
-            # If narration is longer than video segment, extend video segment duration
-            if audio_clip.duration > video_segment.duration:
-                # Freeze last frame for remaining audio duration
-                video_segment = video_segment.with_duration(audio_clip.duration)
-
-            # Combine video and audio
-            final_clips.append(video_segment.with_audio(audio_clip))
-
-        # Concatenate all clips
-        if final_clips:
-            final_video = concatenate_videoclips(final_clips)
-
-            # Write final video
-            try:
-                final_video.write_videofile(
-                    str(output_path), codec="libx264", fps=video.fps, audio_codec="aac"
-                )
-            except Exception as e:
-                _console.log(f"[red]Error writing final video: {e}[/red]")
-            finally:
-                final_video.close()
-
-        # Clean up
-        video.close()
-        video_path.unlink(missing_ok=True)
-        _console.log(f"[yellow]Deleted {video_path} after processing.[/yellow]")
-        _console.log(f"[green]Final tutorial saved to {output_path}[/green]")
+            # Execute code typing
+            self.time_dict = self._type_code(code_cells, keyboard, proc)
+        finally:
+            # Cleanup
+            self.video_manager.stop_recording()
+            self._join_threads(recording_thread, matplotlib_thread)
+            self._platform_manager.close_window_by_id(window_id)
+            self.video_manager.overlay_audio(self.time_dict, self.audio_path)
 
     def make_tutorial(self):
         """Typewrite, Synchronize sound, Screen Record."""
