@@ -1,12 +1,4 @@
-from ._infrastructure._ai import GoogleGenAI
-from ._utils import (
-    parse_code,
-    _is_jupyter_idle,
-    _get_audio_length,
-)
-from ._prompts import PromptManager
-from ._platforms import PlatformManager
-
+# External Libs.
 import platform
 import pyautogui
 from pynput.keyboard import Controller
@@ -15,13 +7,19 @@ import os
 import threading
 from pathlib import Path
 from threading import Event
-
+from rich.console import Console
 from elevenlabs.client import ElevenLabs
 
-from rich.console import Console
-
+# Internal Libs.
 from ._infrastructure._audio import AudioManager
 from ._infrastructure._video import VideoManager
+from ._infrastructure._ai import PromptManager, GoogleGenAI
+from ._utils import (
+    parse_code,
+    _is_jupyter_idle,
+    _get_audio_length,
+)
+from ._platforms import PlatformManager
 
 _console = Console()
 
