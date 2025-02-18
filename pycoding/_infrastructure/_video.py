@@ -6,6 +6,8 @@ import shutil
 from pathlib import Path
 from rich.console import Console
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
+import concurrent.futures
+from typing import List, Tuple
 
 _console = Console()
 
@@ -103,6 +105,42 @@ class VideoManager:
             self.ffmpeg_process.terminate()
             self.ffmpeg_process.wait()
 
+    def _process_video_segment(self, params: Tuple) -> VideoFileClip:
+        """Process a single video segment with its audio in parallel."""
+        key, timing, video, audio_path, base_start = params
+
+        audio_file = audio_path / f"snippet_{key}.mp3"
+        if not audio_file.exists():
+            _console.log(
+                f"[yellow]Warning: Missing narration file {audio_file}[/yellow]"
+            )
+            return None
+
+        # Calculate relative timestamps
+        start_time = timing["Start"] - base_start
+        end_time = min(timing["End"] - base_start, video.duration)
+
+        # Safety check for timestamps
+        if start_time >= video.duration:
+            _console.log(
+                f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
+            )
+            return None
+
+        try:
+            video_segment = video.subclipped(start_time, end_time)
+            audio_clip = AudioFileClip(str(audio_file))
+
+            # If narration is longer than video segment, extend video segment duration
+            if audio_clip.duration > video_segment.duration:
+                video_segment = video_segment.with_duration(audio_clip.duration)
+
+            # Combine video and audio
+            return video_segment.with_audio(audio_clip)
+        except Exception as e:
+            _console.log(f"[red]Error processing clip {key}: {e}[/red]")
+            return None
+
     def overlay_audio(self, time_dict, audio_path):
         """Overlays narration audio on the recorded screen video."""
         video_path = Path("pycoding_data/screen_recording.mp4")
@@ -113,47 +151,26 @@ class VideoManager:
             return
 
         video = VideoFileClip(str(video_path))
+        base_start = time_dict["0"]["Start"]
 
-        # Create a list to store all clips with their audio
-        final_clips = []
+        # Prepare parameters for parallel processing
+        process_params = [
+            (key, timing, video, audio_path, base_start)
+            for key, timing in sorted(time_dict.items(), key=lambda x: int(x[0]))
+        ]
 
-        for key in sorted(time_dict.keys(), key=int):
-            timing = time_dict[key]
-            audio_file = audio_path / f"snippet_{key}.mp3"
+        # Process video segments in parallel
+        final_clips: List[VideoFileClip] = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [
+                executor.submit(self._process_video_segment, params)
+                for params in process_params
+            ]
 
-            if not audio_file.exists():
-                _console.log(
-                    f"[yellow]Warning: Missing narration file {audio_file}[/yellow]"
-                )
-                continue
-
-            # Calculate relative timestamps
-            start_time = timing["Start"] - time_dict["0"]["Start"]
-            end_time = min(timing["End"] - time_dict["0"]["Start"], video.duration)
-
-            # Safety check for timestamps
-            if start_time >= video.duration:
-                _console.log(
-                    f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
-                )
-                continue
-
-            # Extract video segment
-            try:
-                video_segment = video.subclipped(start_time, end_time)
-            except Exception as e:
-                _console.log(f"[red]Error processing clip {key}: {e}[/red]")
-                continue
-
-            # Add audio
-            audio_clip = AudioFileClip(str(audio_file))
-
-            # If narration is longer than video segment, extend video segment duration
-            if audio_clip.duration > video_segment.duration:
-                video_segment = video_segment.with_duration(audio_clip.duration)
-
-            # Combine video and audio
-            final_clips.append(video_segment.with_audio(audio_clip))
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    final_clips.append(result)
 
         # Concatenate all clips
         if final_clips:
@@ -162,7 +179,13 @@ class VideoManager:
             # Write final video
             try:
                 final_video.write_videofile(
-                    str(output_path), codec="libx264", fps=video.fps, audio_codec="aac"
+                    str(output_path),
+                    codec="libx264",
+                    fps=video.fps,
+                    audio_codec="aac",
+                    n_threads=max(
+                        1, os.cpu_count() - 1
+                    ),  # Use multiple threads for encoding
                 )
             except Exception as e:
                 _console.log(f"[red]Error writing final video: {e}[/red]")
