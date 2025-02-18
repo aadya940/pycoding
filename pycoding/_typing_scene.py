@@ -9,6 +9,9 @@ from pathlib import Path
 from threading import Event
 from rich.console import Console
 from elevenlabs.client import ElevenLabs
+import subprocess
+from typing import Literal
+from contextlib import contextmanager
 
 # Internal Libs.
 from ._infrastructure._audio import AudioManager
@@ -20,6 +23,7 @@ from ._utils import (
     _get_audio_length,
 )
 from ._platforms import PlatformManager
+from .scene import CodingScene
 
 _console = Console()
 
@@ -27,10 +31,12 @@ _console = Console()
 class TimingConfig:
     """Configuration for various timing constants used in the tutorial creation."""
 
-    JUPYTER_STARTUP_DELAY = 6.0  # Time to wait for Jupyter console to start
-    CHAR_TYPE_DELAY = 0.1  # Delay between typing each character
-    IDLE_CHECK_INTERVAL = 0.5  # How often to check if Jupyter is idle
-    POST_CELL_PADDING = 10.0  # Extra time padding after each cell execution
+    JUPYTER_STARTUP_DELAY = 6.0
+    CHAR_TYPE_DELAY = 0.1
+    IDLE_CHECK_INTERVAL = 0.5
+    POST_CELL_PADDING = 10.0
+    EXECUTION_TIMEOUT = 60.0  # Move timeout duration here
+    RECORDING_FPS = 20  # Move FPS value here
 
 
 class CodingTutorial:
@@ -72,11 +78,32 @@ class CodingTutorial:
         eleven_labs_api_key: str,
         eleven_labs_voice_id: str,
         model_object: GoogleGenAI,
-        path_info=None,
-        narration_type="after",
-        language="python3",
-        force_approve=False,
-    ):
+        path_info: str | Path,
+        narration_type: Literal["after", "parallel"] = "after",
+        language: str = "python3",
+        force_approve: bool = False,
+    ) -> None:
+        """Initialize the CodingTutorial class.
+
+        Args:
+            topic: The tutorial topic
+            eleven_labs_api_key: API key for ElevenLabs voice synthesis
+            eleven_labs_voice_id: Voice ID for ElevenLabs synthesis
+            model_object: AI model for code generation
+            path_info: Path information for file operations
+            narration_type: When to play narration ('after' or 'parallel')
+            language: Programming language for the tutorial
+            force_approve: Whether to skip manual approval steps
+
+        Raises:
+            ValueError: If invalid parameters are provided
+        """
+        if not topic or not isinstance(topic, str):
+            raise ValueError("Topic must be a non-empty string")
+
+        if not eleven_labs_api_key:
+            raise ValueError("ElevenLabs API key is required")
+
         self.topic = topic
         self.voice_object = {
             "API_KEY": eleven_labs_api_key,
@@ -95,7 +122,6 @@ class CodingTutorial:
         os.makedirs(Path("pycoding_data/audio_files"), exist_ok=True)
         self.audio_path = Path("pycoding_data/audio_files")
         self.recording_process = None
-        assert path_info is not None
         self.path_info = path_info
         self.narration_type = narration_type
         self.language = language
@@ -116,37 +142,31 @@ class CodingTutorial:
             force_approve,
         )
 
-    def _generate_tutorial_code(self):
-        _prompt = self._prompt_manager.build_prompt()
-        while True:
-            _response = self.model_object.send_message(_prompt)
-            _console.log(_response)
+        assert path_info is not None
 
-            if self.force_approve:
-                break
-
-            _approval = input(f"Do you approve the code snippets? (yes/no): ")
-
-            if _approval.lower() == "yes":
-                break
-
-            else:
-                _feedback = input("Provide feedback to improve the response: ")
-                self.model_object.send_message(_feedback)
-
-        _code = parse_code(_response)  # Must return a list of code snippets.
-        return _code
+    def _generate_tutorial_code(self) -> list[str]:
+        """Generates tutorial code snippets using the AI model."""
+        try:
+            _prompt = self._prompt_manager.build_prompt()
+            _response = self.model_object.generate_tutorial_code(_prompt)
+            _code = parse_code(_response)
+            if not _code:
+                raise ValueError("No code snippets were generated")
+            return _code
+        except Exception as e:
+            _console.log(f"[red]Error generating tutorial code: {str(e)}")
+            raise
 
     def _get_jupyter_window_id(self):
-        # Use PlatformManager
+        """Retrieves the window ID of the active Jupyter console."""
         return self._platform_manager.get_window_id()
 
     def _get_window_coordinates_by_id(self, window_id: str):
-        """Get the coordinates of a window by its ID using xwininfo."""
-        # Use PlatformManager
+        """Gets the screen coordinates of a window given its ID."""
         return self._platform_manager.get_coordinates_using_id(window_id)
 
     def _start_background_threads(self, window_id: str):
+        """Initializes and starts recording and matplotlib monitoring threads."""
         recording_thread = threading.Thread(
             target=self.video_manager.record_window,
             args=(window_id, Path("pycoding_data/screen_recording.mp4"), 20),
@@ -163,11 +183,14 @@ class CodingTutorial:
     def _join_threads(
         self, recording_thread: threading.Thread, matplotlib_thread: threading.Thread
     ):
+        """Waits for background threads to complete execution."""
         recording_thread.join()
         matplotlib_thread.join()
 
-    def _type_code(self, code_cells, keyboard, proc):
-        """Handle code typing and execution."""
+    def _type_code(
+        self, code_cells: list[str], keyboard: Controller, proc: subprocess.Popen
+    ) -> dict[str, dict[str, float]]:
+        """Types and executes code cells while managing timing and audio synchronization."""
         time_dict = {}
         prev_end_time = time.time()
 
@@ -179,40 +202,15 @@ class CodingTutorial:
                 "Audio-Start": None,
             }
 
-            _splitted_cells = cell.splitlines()
+            _splitted_cell = cell.splitlines()
 
             # Track the start of actual code execution
             execution_start = time.time()
 
-            for idx in range(len(_splitted_cells)):
-                indent_gap = None
-                line = _splitted_cells[idx]
-
-                if "python" in self.language:
-                    stripped_line = line.lstrip()
-                    next_line = (
-                        _splitted_cells[idx + 1]
-                        if (idx + 1) < len(_splitted_cells)
-                        else None
-                    )
-                    curr_indent = len(line) - len(stripped_line)
-                    if next_line is not None:
-                        next_indent = len(next_line) - len(next_line.lstrip())
-                        indent_gap = next_indent - curr_indent
-                else:
-                    stripped_line = line
-
-                # Type each character with consistent timing
-                for char in stripped_line:
-                    keyboard.press(char)
-                    time.sleep(TimingConfig.CHAR_TYPE_DELAY)
-                    keyboard.release(char)
-                pyautogui.press("enter")
-
-                if indent_gap is not None:
-                    if indent_gap < 0:
-                        for _ in range(-1 * indent_gap):
-                            pyautogui.press("backspace")
+            _cell = CodingScene(
+                _splitted_cell, self.language, TimingConfig.CHAR_TYPE_DELAY
+            )
+            _cell.type_code()
 
             pyautogui.hotkey("alt", "enter")
 
@@ -245,6 +243,7 @@ class CodingTutorial:
                 padding_time = final_end - (_start + code_exec_time)
                 if padding_time > 0:
                     time.sleep(padding_time)
+
             else:
                 audio_start = _end
                 final_end = _end + _audio_length + TimingConfig.POST_CELL_PADDING
@@ -256,14 +255,9 @@ class CodingTutorial:
 
         return time_dict
 
-    def _main(self):
-        # Generate code and audio
-        code_cells = self._generate_tutorial_code()
-        audio_files = self.audio_manager.generate_audio_files(
-            code_cells, self.audio_path
-        )
-
-        # Setup and start recording
+    @contextmanager
+    def _recording_session(self):
+        """Context manager for handling recording session setup and cleanup."""
         keyboard = Controller()
         proc = self._platform_manager.open_jupyter_console()
         time.sleep(TimingConfig.JUPYTER_STARTUP_DELAY)
@@ -272,15 +266,23 @@ class CodingTutorial:
         recording_thread, matplotlib_thread = self._start_background_threads(window_id)
 
         try:
-            # Execute code typing
-            self.time_dict = self._type_code(code_cells, keyboard, proc)
+            yield keyboard, proc
         finally:
-            # Cleanup
             self.video_manager.stop_recording()
             self._join_threads(recording_thread, matplotlib_thread)
             self._platform_manager.close_window_by_id(window_id)
+
+    def _main(self):
+        """Orchestrates the main tutorial creation workflow."""
+        code_cells = self._generate_tutorial_code()
+        audio_files = self.audio_manager.generate_audio_files(
+            code_cells, self.audio_path
+        )
+
+        with self._recording_session() as (keyboard, proc):
+            self.time_dict = self._type_code(code_cells, keyboard, proc)
             self.video_manager.overlay_audio(self.time_dict, self.audio_path)
 
     def make_tutorial(self):
-        """Typewrite, Synchronize sound, Screen Record."""
+        """Creates a complete tutorial by executing the main workflow."""
         self._main()

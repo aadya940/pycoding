@@ -2,6 +2,9 @@
 
 from .._base import BaseAI
 import google.generativeai as genai
+from rich.console import Console
+
+_console = Console()
 
 
 class GoogleGenAI(BaseAI):
@@ -30,6 +33,27 @@ class GoogleGenAI(BaseAI):
 
         response = self.chat.send_message(message)
         return response.text  # Extract the response content
+
+    def generate_tutorial_code(self, prompt):
+        """Generate tutorial code based on the prompt."""
+        while True:
+            _response = self.send_message(prompt)
+            _console.log(_response)
+
+            if self.force_approve:
+                break
+
+            _approval = input(f"Do you approve the code snippets? (yes/no): ")
+
+            if _approval.lower() == "yes":
+                break
+
+            else:
+                _feedback = input("Provide feedback to improve the response: ")
+                self.send_message(_feedback)
+
+        return _response
+
 
 class PromptManager:
     def __init__(self, language, topic, path_info=None):
@@ -157,4 +181,3 @@ class PromptManager:
             Format your response as a natural, flowing explanation
             """
         return _prompt
-
