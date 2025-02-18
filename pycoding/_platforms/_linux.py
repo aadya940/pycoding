@@ -1,12 +1,22 @@
 import subprocess
 import time
 from threading import Event
+from dataclasses import dataclass
+
+
+@dataclass
+class Delays:
+    """Configuration class for various delay values used in platform operations"""
+
+    matplotlib_window_check: float = 1.0  # Delay between checks for matplotlib window
+    matplotlib_window_close: float = 11.0  # Delay before closing matplotlib window
 
 
 class LinuxManager:
     def __init__(self, language):
         # TODO, Check if `wmctrl` and `xwininfo` are present or not.
         self.language = language
+        self.delays = Delays()
 
     def get_window_id(self):
         try:
@@ -96,15 +106,17 @@ class LinuxManager:
                     parts = line.split()
                     if len(parts) > 0:
                         window_id = parts[0]  # Window ID is in the 1st column
-                        # Close the window after 10 seconds.
-                        time.sleep(11)
+                        # Close the window after configured delay
+                        time.sleep(self.delays.matplotlib_window_close)
                         self.close_window_by_id(window_id)
 
             # Set the event whether we found a window or not
             event.set()
 
             if not window_found:
-                time.sleep(1)  # Brief pause before checking again
+                time.sleep(
+                    self.delays.matplotlib_window_check
+                )  # Brief pause before checking again
                 self.detect_and_close_matplotlib_window(
                     event
                 )  # Recursive call to keep checking
@@ -112,7 +124,7 @@ class LinuxManager:
         except Exception as e:
             print(f"Error detecting matplotlib window: {e}")
             event.set()  # Ensure we don't block the main thread even if there's an error
-            time.sleep(1)
+            time.sleep(self.delays.matplotlib_window_check)
 
     def close_window_by_id(self, window_id: str):
         try:
