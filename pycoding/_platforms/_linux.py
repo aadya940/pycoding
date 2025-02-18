@@ -1,5 +1,6 @@
 import subprocess
 import time
+from threading import Event
 
 
 class LinuxManager:
@@ -77,7 +78,7 @@ class LinuxManager:
         )
         return proc
 
-    def detect_and_close_matplotlib_window(self):
+    def detect_and_close_matplotlib_window(self, event):
         """Detect if matplotlib window is open and return its window ID."""
         try:
             # Run wmctrl to get all windows
@@ -87,8 +88,10 @@ class LinuxManager:
             output = result.stdout
 
             # Search for the line containing 'Image Viewer'
+            window_found = False
             for line in output.splitlines():
                 if "Image Viewer" in line:
+                    window_found = True
                     # Extract the window ID (1st field in the output)
                     parts = line.split()
                     if len(parts) > 0:
@@ -96,10 +99,19 @@ class LinuxManager:
                         # Close the window after 10 seconds.
                         time.sleep(11)
                         self.close_window_by_id(window_id)
-            time.sleep(1)
+
+            # Set the event whether we found a window or not
+            event.set()
+
+            if not window_found:
+                time.sleep(1)  # Brief pause before checking again
+                self.detect_and_close_matplotlib_window(
+                    event
+                )  # Recursive call to keep checking
 
         except Exception as e:
             print(f"Error detecting matplotlib window: {e}")
+            event.set()  # Ensure we don't block the main thread even if there's an error
             time.sleep(1)
 
     def close_window_by_id(self, window_id: str):

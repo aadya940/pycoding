@@ -7,3 +7,7 @@ class BaseVoice:
 
 class BaseAI:
     pass
+
+
+class BaseVideo:
+    pass

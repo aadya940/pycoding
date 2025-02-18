@@ -1,6 +1,6 @@
 """Class to create content using different vendors (Eg: Google)"""
 
-from ._base import BaseAI
+from .._base import BaseAI
 import google.generativeai as genai
 
 

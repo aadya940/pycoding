@@ -11,6 +11,8 @@ _console = Console()
 
 
 class VideoManager:
+    """Manage Jupyter Console dimensions and ffmpeg for video."""
+
     def __init__(self, platform_manager):
         self.platform_manager = platform_manager
         self.ffmpeg_process = None

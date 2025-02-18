@@ -7,6 +7,8 @@ _console = Console()
 
 
 class AudioManager:
+    """Manage functions to generate elevenlabs audio."""
+
     def __init__(
         self, client, prompt_manager, model_object, voice_object, force_approve=False
     ):

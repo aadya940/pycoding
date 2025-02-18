@@ -1,5 +1,5 @@
 from ._typing_scene import CodingTutorial
-from ._ai import GoogleGenAI
+from ._infrastructure._ai import GoogleGenAI
 import argparse
 from pathlib import Path
 from rich.console import Console

@@ -1,4 +1,4 @@
-from ._ai import GoogleGenAI
+from ._infrastructure._ai import GoogleGenAI
 from ._utils import (
     parse_code,
     _is_jupyter_idle,
@@ -14,15 +14,25 @@ import time
 import os
 import threading
 from pathlib import Path
+from threading import Event
 
 from elevenlabs.client import ElevenLabs
 
 from rich.console import Console
 
-from ._audio import AudioManager
-from ._video import VideoManager
+from ._infrastructure._audio import AudioManager
+from ._infrastructure._video import VideoManager
 
 _console = Console()
+
+
+class TimingConfig:
+    """Configuration for various timing constants used in the tutorial creation."""
+
+    JUPYTER_STARTUP_DELAY = 6.0  # Time to wait for Jupyter console to start
+    CHAR_TYPE_DELAY = 0.1  # Delay between typing each character
+    IDLE_CHECK_INTERVAL = 0.5  # How often to check if Jupyter is idle
+    POST_CELL_PADDING = 10.0  # Extra time padding after each cell execution
 
 
 class CodingTutorial:
@@ -98,6 +108,7 @@ class CodingTutorial:
 
         self.time_dict = {}
 
+        self.matplotlib_event = Event()
         self.video_manager = VideoManager(self._platform_manager)
         self.audio_manager = AudioManager(
             self._client,
@@ -146,6 +157,7 @@ class CodingTutorial:
 
         matplotlib_thread = threading.Thread(
             target=self._platform_manager.detect_and_close_matplotlib_window,
+            args=(self.matplotlib_event,),
         )
         matplotlib_thread.start()
         return recording_thread, matplotlib_thread
@@ -162,8 +174,7 @@ class CodingTutorial:
         prev_end_time = time.time()
 
         for i, cell in enumerate(code_cells):
-            # Record start time
-            _start = prev_end_time  # Start immediately after the previous segment
+            _start = prev_end_time
             time_dict[str(i)] = {
                 "Start": _start,
                 "End": None,
@@ -172,16 +183,15 @@ class CodingTutorial:
 
             _splitted_cells = cell.splitlines()
 
-            # Typewrite the code
-            for idx in range(len(_splitted_cells)):  # FIXED: Use range(len())
-                indent_gap = None
+            # Track the start of actual code execution
+            execution_start = time.time()
 
+            for idx in range(len(_splitted_cells)):
+                indent_gap = None
                 line = _splitted_cells[idx]
 
                 if "python" in self.language:
-                    # Jupyter console automatically handles indentation.
                     stripped_line = line.lstrip()
-
                     next_line = (
                         _splitted_cells[idx + 1]
                         if (idx + 1) < len(_splitted_cells)
@@ -191,15 +201,15 @@ class CodingTutorial:
                     if next_line is not None:
                         next_indent = len(next_line) - len(next_line.lstrip())
                         indent_gap = next_indent - curr_indent
-
                 else:
                     stripped_line = line
 
+                # Type each character with consistent timing
                 for char in stripped_line:
                     keyboard.press(char)
-                    time.sleep(0.1)
+                    time.sleep(TimingConfig.CHAR_TYPE_DELAY)
                     keyboard.release(char)
-                pyautogui.press("enter")  # Execute line
+                pyautogui.press("enter")
 
                 if indent_gap is not None:
                     if indent_gap < 0:
@@ -208,31 +218,43 @@ class CodingTutorial:
 
             pyautogui.hotkey("alt", "enter")
 
-            # Wait for execution to finish
-            while not _is_jupyter_idle(proc):
-                time.sleep(0.5)
+            # Wait for execution with timeout
+            timeout_start = time.time()
+            timeout_duration = 60  # 1 minute timeout
+            while not _is_jupyter_idle(proc) or not self.matplotlib_event.is_set():
+                if time.time() - timeout_start > timeout_duration:
+                    _console.log(f"Warning: Cell {i} execution timed out")
+                    break
+                time.sleep(TimingConfig.IDLE_CHECK_INTERVAL)
 
-            _end = time.time()  # Execution end time
-            code_exec_time = _end - _start
+            self.matplotlib_event.clear()
 
-            # Calculate audio start & end times
+            _end = time.time()
+            code_exec_time = _end - execution_start
+
             _audio_length = _get_audio_length(
                 self.audio_manager.generate_audio_files([cell], self.audio_path)[0]
             )
+
             if self.narration_type == "parallel":
                 audio_start = _start
-                final_end = _start + max(code_exec_time, _audio_length) + 10
-                __diff = final_end - (_start + code_exec_time)
-                if __diff > 0:
-                    time.sleep(__diff)
-            else:  # Narration after execution
+                # Use max to ensure we don't cut off either code or audio
+                final_end = (
+                    _start
+                    + max(code_exec_time, _audio_length)
+                    + TimingConfig.POST_CELL_PADDING
+                )
+                padding_time = final_end - (_start + code_exec_time)
+                if padding_time > 0:
+                    time.sleep(padding_time)
+            else:
                 audio_start = _end
-                final_end = _end + _audio_length + 10
+                final_end = _end + _audio_length + TimingConfig.POST_CELL_PADDING
 
             time_dict[str(i)]["Audio-Start"] = audio_start
-            time_dict[str(i)]["End"] = final_end  # Assign final_end as End
+            time_dict[str(i)]["End"] = final_end
 
-            prev_end_time = final_end  # Update for the next snippet
+            prev_end_time = final_end
 
         return time_dict
 
@@ -246,7 +268,7 @@ class CodingTutorial:
         # Setup and start recording
         keyboard = Controller()
         proc = self._platform_manager.open_jupyter_console()
-        time.sleep(6)
+        time.sleep(TimingConfig.JUPYTER_STARTUP_DELAY)
 
         window_id = self._get_jupyter_window_id()
         recording_thread, matplotlib_thread = self._start_background_threads(window_id)
