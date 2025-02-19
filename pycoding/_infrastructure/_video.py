@@ -126,7 +126,7 @@ class VideoManager:
                 image_clip = ImageClip(
                     _title_path, duration=5
                 )  # Display image for 5 seconds
-                image_clip = image_clip.resize(
+                image_clip = image_clip.resized(
                     width=video.w, height=video.h
                 )  # Match video dimensions
                 image_clip = image_clip.set_fps(self.fps)  # Match video FPS

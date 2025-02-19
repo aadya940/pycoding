@@ -225,6 +225,7 @@ class CodingTutorial:
                     - Keep it relevant to the code.
                     - Keep it minimalistic.
                     - Only return the title, nothing else.
+                    - The title shouldn't exceed 5 Words.
                     """
                     )
                 )
