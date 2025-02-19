@@ -114,31 +114,7 @@ class VideoManager:
         """Process a single video segment with its audio in parallel."""
         key, timing, video, audio_path, base_start = params
 
-        if title is not None:
-            try:
-                _title_path = os.path.join(
-                    str(Path("pycoding_data/title_files")),
-                    title.replace(" ", "") + ".png",
-                )
-                _title_path = create_title(
-                    title,
-                    _title_path,
-                    image_size=(
-                        video.size[0],
-                        video.size[1],
-                    ),  # Use actual video dimensions
-                )
-
-                # Create the title clip
-                image_clip = ImageClip(_title_path, duration=5)
-                # No need to resize since it's already the correct size
-
-            except Exception as e:
-                _console.log(
-                    f"[yellow]Warning: Failed to create title slide for segment {key}: {e}[/yellow]"
-                )
-                title = None
-
+        # Load audio file first to check existence and get duration
         audio_file = audio_path / f"snippet_{key}.mp3"
         if not audio_file.exists():
             _console.log(
@@ -146,33 +122,51 @@ class VideoManager:
             )
             return None
 
-        # Calculate relative timestamps
-        start_time = timing["Start"] - base_start
-        end_time = min(timing["End"] - base_start, video.duration)
-
-        # Safety check for timestamps
-        if start_time >= video.duration:
-            _console.log(
-                f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
-            )
-            return None
-
         try:
-            video_segment = video.subclipped(start_time, end_time)
-            audio_clip = AudioFileClip(str(audio_file))
+            # Calculate timestamps once
+            start_time = timing["Start"] - base_start
+            end_time = min(timing["End"] - base_start, video.duration)
 
-            # If narration is longer than video segment, extend video segment duration
+            if start_time >= video.duration:
+                _console.log(
+                    f"[yellow]Warning: Clip {key} start time exceeds video duration[/yellow]"
+                )
+                return None
+
+            # Create title clip only if needed
+            title_clip = None
+            if title is not None:
+                try:
+                    _title_path = os.path.join(
+                        str(Path("pycoding_data/title_files")),
+                        title.replace(" ", "") + ".png",
+                    )
+                    _title_path = create_title(
+                        title, _title_path, image_size=(video.size[0], video.size[1])
+                    )
+                    title_clip = ImageClip(_title_path, duration=5)
+                except Exception as e:
+                    _console.log(
+                        f"[yellow]Warning: Failed to create title slide for segment {key}: {e}[/yellow]"
+                    )
+
+            # Load audio and video segments
+            audio_clip = AudioFileClip(str(audio_file))
+            video_segment = video.subclipped(start_time, end_time)
+
+            # Extend video duration if needed
             if audio_clip.duration > video_segment.duration:
                 video_segment = video_segment.with_duration(audio_clip.duration)
 
             # Combine video and audio
-            if title is not None:
-                return concatenate_videoclips(
-                    [image_clip, video_segment.with_audio(audio_clip)],
-                    method="compose",
-                )
+            final_segment = video_segment.with_audio(audio_clip)
 
-            return video_segment.with_audio(audio_clip)
+            # Add title if it exists
+            if title_clip:
+                return concatenate_videoclips(
+                    [title_clip, final_segment], method="compose"
+                )
+            return final_segment
 
         except Exception as e:
             _console.log(f"[red]Error processing clip {key}: {e}[/red]")
