@@ -159,15 +159,17 @@ class VideoManager:
             for key, timing in sorted(time_dict.items(), key=lambda x: int(x[0]))
         ]
 
-        # Process video segments in parallel
+        # Process video segments in parallel while maintaining order
         final_clips: List[VideoFileClip] = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(self._process_video_segment, params)
-                for params in process_params
+            # Create all futures and store them with their indices
+            futures_with_index = [
+                (i, executor.submit(self._process_video_segment, params))
+                for i, params in enumerate(process_params)
             ]
 
-            for future in concurrent.futures.as_completed(futures):
+            # Wait for all futures to complete and process them in order
+            for i, future in sorted(futures_with_index, key=lambda x: x[0]):
                 result = future.result()
                 if result is not None:
                     final_clips.append(result)
