@@ -83,7 +83,7 @@ else:
     path_info = []
     _console.log("[yellow]No paths provided. Skipping path setup.[/yellow]")
 
-_ai_object = GoogleGenAI(_args.google_api_key)
+_ai_object = GoogleGenAI(_args.google_api_key, force_approve=_args.force_approve)
 
 _tutorial = CodingTutorial(
     topic=_args.topic,

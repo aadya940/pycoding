@@ -183,7 +183,7 @@ class VideoManager:
                     codec="libx264",
                     fps=video.fps,
                     audio_codec="aac",
-                    n_threads=max(
+                    threads=max(
                         1, os.cpu_count() - 1
                     ),  # Use multiple threads for encoding
                 )

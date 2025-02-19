@@ -170,12 +170,14 @@ class CodingTutorial:
         recording_thread = threading.Thread(
             target=self.video_manager.record_window,
             args=(window_id, Path("pycoding_data/screen_recording.mp4"), 20),
+            daemon=True,  # Make thread daemon
         )
         recording_thread.start()
 
         matplotlib_thread = threading.Thread(
             target=self._platform_manager.detect_and_close_matplotlib_window,
             args=(self.matplotlib_event,),
+            daemon=True,  # Make thread daemon
         )
         matplotlib_thread.start()
         return recording_thread, matplotlib_thread
@@ -184,8 +186,19 @@ class CodingTutorial:
         self, recording_thread: threading.Thread, matplotlib_thread: threading.Thread
     ):
         """Waits for background threads to complete execution."""
-        recording_thread.join()
-        matplotlib_thread.join()
+        # Wait for threads with timeout
+        recording_thread.join(timeout=5)
+        matplotlib_thread.join(timeout=5)
+
+        # Log warning if threads didn't complete
+        if recording_thread.is_alive():
+            _console.log(
+                "[yellow]Warning: Recording thread did not exit cleanly[/yellow]"
+            )
+        if matplotlib_thread.is_alive():
+            _console.log(
+                "[yellow]Warning: Matplotlib thread did not exit cleanly[/yellow]"
+            )
 
     def _type_code(
         self, code_cells: list[str], keyboard: Controller, proc: subprocess.Popen
@@ -217,20 +230,21 @@ class CodingTutorial:
             # Wait for execution with timeout
             timeout_start = time.time()
             timeout_duration = 60  # 1 minute timeout
-            while not _is_jupyter_idle(proc) or not self.matplotlib_event.is_set():
+            while not _is_jupyter_idle(proc):
                 if time.time() - timeout_start > timeout_duration:
                     _console.log(f"Warning: Cell {i} execution timed out")
                     break
                 time.sleep(TimingConfig.IDLE_CHECK_INTERVAL)
 
-            self.matplotlib_event.clear()
+            if not self.matplotlib_event.is_set():
+                self.matplotlib_event.clear()
 
             _end = time.time()
             code_exec_time = _end - execution_start
 
-            _audio_length = _get_audio_length(
-                self.audio_manager.generate_audio_files([cell], self.audio_path)[0]
-            )
+            __cur_audio_path = self.audio_path / f"snippet_{i}.mp3"
+            self.audio_manager._generate_single_audio(cell, __cur_audio_path)
+            _audio_length = _get_audio_length(__cur_audio_path)
 
             if self.narration_type == "parallel":
                 audio_start = _start
@@ -268,20 +282,26 @@ class CodingTutorial:
         try:
             yield keyboard, proc
         finally:
+            # Signal threads to stop
             self.video_manager.stop_recording()
+            self.matplotlib_event.set()  # Signal matplotlib thread to stop
             self._join_threads(recording_thread, matplotlib_thread)
-            self._platform_manager.close_window_by_id(window_id)
+
+            # Force kill process if still running
+            if proc and proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=5)
+
+            # Close window as final cleanup
+            if window_id:
+                self._platform_manager.close_window_by_id(window_id)
 
     def _main(self):
         """Orchestrates the main tutorial creation workflow."""
         code_cells = self._generate_tutorial_code()
-        audio_files = self.audio_manager.generate_audio_files(
-            code_cells, self.audio_path
-        )
-
         with self._recording_session() as (keyboard, proc):
             self.time_dict = self._type_code(code_cells, keyboard, proc)
-            self.video_manager.overlay_audio(self.time_dict, self.audio_path)
+        self.video_manager.overlay_audio(self.time_dict, self.audio_path)
 
     def make_tutorial(self):
         """Creates a complete tutorial by executing the main workflow."""

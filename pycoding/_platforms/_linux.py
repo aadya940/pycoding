@@ -89,42 +89,40 @@ class LinuxManager:
         return proc
 
     def detect_and_close_matplotlib_window(self, event):
-        """Detect if matplotlib window is open and return its window ID."""
+        """Continuously detects and closes Matplotlib windows until event is set."""
+        event.set()  # Indicate that monitoring is active
+
         try:
-            # Run wmctrl to get all windows
-            result = subprocess.run(
-                ["wmctrl", "-lp"], stdout=subprocess.PIPE, text=True, check=True
-            )
-            output = result.stdout
+            while not event.is_set():  # Keep checking until manually stopped
+                result = subprocess.run(
+                    ["wmctrl", "-lp"], stdout=subprocess.PIPE, text=True, check=True
+                )
+                output = result.stdout
+                window_found = False
 
-            # Search for the line containing 'Image Viewer'
-            window_found = False
-            for line in output.splitlines():
-                if "Image Viewer" in line:
-                    window_found = True
-                    # Extract the window ID (1st field in the output)
-                    parts = line.split()
-                    if len(parts) > 0:
-                        window_id = parts[0]  # Window ID is in the 1st column
-                        # Close the window after configured delay
-                        time.sleep(self.delays.matplotlib_window_close)
-                        self.close_window_by_id(window_id)
+                for line in output.splitlines():
+                    if (
+                        "Image Viewer" in line
+                    ):  # Adjust based on actual Matplotlib window title
+                        window_found = True
+                        parts = line.split()
+                        if len(parts) > 0:
+                            window_id = parts[0]
+                            time.sleep(self.delays.matplotlib_window_close)
+                            self.close_window_by_id(window_id)
 
-            # Set the event whether we found a window or not
-            event.set()
+                if window_found:
+                    event.clear()  # Reset only if a window was found & closed
 
-            if not window_found:
                 time.sleep(
                     self.delays.matplotlib_window_check
-                )  # Brief pause before checking again
-                self.detect_and_close_matplotlib_window(
-                    event
-                )  # Recursive call to keep checking
+                )  # Small pause before next check
 
         except Exception as e:
-            print(f"Error detecting matplotlib window: {e}")
-            event.set()  # Ensure we don't block the main thread even if there's an error
-            time.sleep(self.delays.matplotlib_window_check)
+            print(f"Error detecting Matplotlib window: {e}")
+
+        finally:
+            event.set()  # Ensure event is always set when the loop exits
 
     def close_window_by_id(self, window_id: str):
         try:

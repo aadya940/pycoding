@@ -8,9 +8,10 @@ _console = Console()
 
 
 class GoogleGenAI(BaseAI):
-    def __init__(self, api_key, model="gemini-2.0-flash-exp"):
+    def __init__(self, api_key, force_approve, model="gemini-2.0-flash-exp"):
         """Initialization with default model and location."""
         self.api_key = api_key
+        self.force_approve = force_approve
 
         # Configure the API with key and location
         genai.configure(api_key=self.api_key)
@@ -92,6 +93,7 @@ class PromptManager:
         4. Make sure the code doesn't take more than 5 minutes to run. For example, if you're
         teaching machine learning with tensorflow, run the model for only one epoch. Hope you
         get the point.
+        5. Refrain from User Inputs in the code.
         """
 
     def _cpp_prompt(self):
@@ -111,6 +113,7 @@ class PromptManager:
         #pragma cling load("your_library")
         5. Ensure compatibility with the Cling compiler.
         6. Use quotes instead of angle brackets while import any headers in the code.
+        7. Refrain from User Inputs in the code.
         """
 
     def _r_prompt(self):
@@ -124,7 +127,8 @@ class PromptManager:
         1. Split the code into multiple ```r your_code ``` blocks.  
         2. Each block should be well-commented, focusing on clarity and explanation.  
         3. Use or consider the following paths and their associated purposes in the code:  
-        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}"""
+        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
+        4. Refrain from User Inputs in the code."""
 
     def _julia_prompt(self):
         return f"""Write Julia code snippets to explain the following topic. 
@@ -137,7 +141,9 @@ class PromptManager:
         1. Split the code into multiple ```julia your_code ``` blocks.  
         2. Each block should be well-commented, focusing on clarity and explanation.  
         3. Use or consider the following paths and their associated purposes in the code:  
-        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}"""
+        {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
+        4. Refrain from User Inputs in the code.
+        """
 
     def _rust_prompt(self):
         return f"""Write Rust code snippets to explain the following topic. 
@@ -152,6 +158,7 @@ class PromptManager:
         3. Use or consider the following paths and their associated purposes in the code:  
         {', '.join([f'Path: {path}, Purpose: {purpose}' for path, purpose in self.path_info])}
         4. Ensure compatibility with `Evcxr` rust kernel.
+        5. Refrain from User Inputs in the code.
         """
 
     def get_audio_prompt(self, code_snippet):

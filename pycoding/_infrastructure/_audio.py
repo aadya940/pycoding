@@ -18,15 +18,6 @@ class AudioManager:
         self.voice_object = voice_object
         self.force_approve = force_approve
 
-    def generate_audio_files(self, code_cells: list, audio_path: Path):
-        """Generate individual audio files for each code snippet."""
-        audio_files = []
-        for i, code_cell in enumerate(code_cells):
-            audio_path = audio_path / f"snippet_{i}.mp3"
-            self._generate_single_audio(code_cell, audio_path)
-            audio_files.append(audio_path)
-        return audio_files
-
     def _generate_single_audio(self, code_snippet: str, path: str):
         """Generate audio for one snippet and save it."""
         _prompt = self.prompt_manager.get_audio_prompt(code_snippet)
