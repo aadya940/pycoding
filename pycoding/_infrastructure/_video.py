@@ -127,9 +127,9 @@ class VideoManager:
                     _title_path, duration=5
                 )  # Display image for 5 seconds
                 image_clip = image_clip.resized(
-                    width=video.w, height=video.h
+                    new_size=video.size,
                 )  # Match video dimensions
-                image_clip = image_clip.set_fps(self.fps)  # Match video FPS
+
             except Exception as e:
                 _console.log(
                     f"[yellow]Warning: Failed to create title slide for segment {key}: {e}[/yellow]"
@@ -165,7 +165,8 @@ class VideoManager:
             # Combine video and audio
             if title is not None:
                 return concatenate_videoclips(
-                    [image_clip, video_segment.with_audio(audio_clip)]
+                    [image_clip, video_segment.with_audio(audio_clip)],
+                    method="compose",
                 )
 
             return video_segment.with_audio(audio_clip)
