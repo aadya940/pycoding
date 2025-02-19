@@ -5,9 +5,11 @@ import os
 import shutil
 from pathlib import Path
 from rich.console import Console
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy import VideoFileClip, AudioFileClip, ImageClip, concatenate_videoclips
 import concurrent.futures
 from typing import List, Tuple
+from .._utils import create_title
+from pathlib import Path
 
 _console = Console()
 
@@ -19,6 +21,7 @@ class VideoManager:
         self.platform_manager = platform_manager
         self.ffmpeg_process = None
         self.recording_process = None
+        self.fps = None
 
     def record_window(self, window_id: str, output_filename: str, fps: int = 20):
         """Records a specific window region."""
@@ -28,6 +31,8 @@ class VideoManager:
         if not coords:
             _console.log("[red]Error: Could not determine window coordinates.[/red]")
             return
+
+        self.fps = fps  # Set fps
 
         x, y, width, height = coords
 
@@ -61,7 +66,7 @@ class VideoManager:
             "-f",
             screen_grab,
             frame_rate_flag,
-            str(fps),
+            str(self.fps),
             "-video_size",
             f"{width}x{height}",
             "-i",
@@ -105,9 +110,31 @@ class VideoManager:
             self.ffmpeg_process.terminate()
             self.ffmpeg_process.wait()
 
-    def _process_video_segment(self, params: Tuple) -> VideoFileClip:
+    def _process_video_segment(self, params: Tuple, title) -> VideoFileClip:
         """Process a single video segment with its audio in parallel."""
         key, timing, video, audio_path, base_start = params
+
+        if title is not None:
+            try:
+                _title_path = os.path.join(
+                    str(Path("pycoding_data/title_files")),
+                    title.replace(" ", "") + ".png",
+                )
+                _title_path = create_title(title, _title_path)
+
+                # Create and configure the title image clip
+                image_clip = ImageClip(
+                    _title_path, duration=5
+                )  # Display image for 5 seconds
+                image_clip = image_clip.resize(
+                    width=video.w, height=video.h
+                )  # Match video dimensions
+                image_clip = image_clip.set_fps(self.fps)  # Match video FPS
+            except Exception as e:
+                _console.log(
+                    f"[yellow]Warning: Failed to create title slide for segment {key}: {e}[/yellow]"
+                )
+                title = None  # Fall back to no title if creation fails
 
         audio_file = audio_path / f"snippet_{key}.mp3"
         if not audio_file.exists():
@@ -136,15 +163,23 @@ class VideoManager:
                 video_segment = video_segment.with_duration(audio_clip.duration)
 
             # Combine video and audio
+            if title is not None:
+                return concatenate_videoclips(
+                    [image_clip, video_segment.with_audio(audio_clip)]
+                )
+
             return video_segment.with_audio(audio_clip)
+
         except Exception as e:
             _console.log(f"[red]Error processing clip {key}: {e}[/red]")
             return None
 
-    def overlay_audio(self, time_dict, audio_path):
+    def overlay_audio(self, time_dict, audio_path, titles=None):
         """Overlays narration audio on the recorded screen video."""
         video_path = Path("pycoding_data/screen_recording.mp4")
         output_path = Path("pycoding_data/final_tutorial.mp4")
+
+        self.titles = titles
 
         if not video_path.exists():
             _console.log("[red]Error: Screen recording file not found![/red]")
@@ -152,6 +187,11 @@ class VideoManager:
 
         video = VideoFileClip(str(video_path))
         base_start = time_dict["0"]["Start"]
+
+        if self.titles is not None and len(self.titles) != len(time_dict):
+            _console.log(
+                f"[yellow]Warning: Number of titles ({len(self.titles)}) doesn't match number of code segments ({len(time_dict)})[/yellow]"
+            )
 
         # Prepare parameters for parallel processing
         process_params = [
@@ -164,7 +204,16 @@ class VideoManager:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Create all futures and store them with their indices
             futures_with_index = [
-                (i, executor.submit(self._process_video_segment, params))
+                (
+                    i,
+                    executor.submit(
+                        self._process_video_segment,
+                        params,
+                        self.titles[i]
+                        if self.titles and i < len(self.titles)
+                        else None,
+                    ),
+                )
                 for i, params in enumerate(process_params)
             ]
 

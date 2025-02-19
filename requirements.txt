@@ -12,3 +12,4 @@ pycaw
 comtypes
 pygetwindow
 moviepy
+opencv-python

@@ -54,6 +54,11 @@ parser.add_argument(
     action="store_true",  # Makes it a flag (True if provided, False if absent)
     help="Automatically approve LLM responses without manual confirmation (default: False).",
 )
+parser.add_argument(
+    "--add-titles",
+    action="store_true",
+    help="Add title slides before each code segment (default: False).",
+)
 
 # Parse arguments
 _args = parser.parse_args()
@@ -94,6 +99,7 @@ _tutorial = CodingTutorial(
     narration_type=_args.narration_type,
     force_approve=_args.force_approve,
     language=_args.language,
+    add_titles=_args.add_titles,
 )
 
 _tutorial.make_tutorial()

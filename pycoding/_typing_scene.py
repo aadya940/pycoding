@@ -82,6 +82,7 @@ class CodingTutorial:
         narration_type: Literal["after", "parallel"] = "after",
         language: str = "python3",
         force_approve: bool = False,
+        add_titles: bool = False,
     ) -> None:
         """Initialize the CodingTutorial class.
 
@@ -126,6 +127,11 @@ class CodingTutorial:
         self.narration_type = narration_type
         self.language = language
         self.force_approve = force_approve
+        self.add_titles = add_titles
+
+        if self.add_titles:
+            os.makedirs(Path("pycoding_data/title_files"), exist_ok=True)
+            self.title_list = []  # Initialize as empty list
 
         self._prompt_manager = PromptManager(language=self.language, topic=self.topic)
         self._platform_manager = PlatformManager(platform.system(), self.language)
@@ -208,6 +214,21 @@ class CodingTutorial:
         prev_end_time = time.time()
 
         for i, cell in enumerate(code_cells):
+            if self.add_titles:
+                self.title_list.append(
+                    self.model_object.send_message(
+                        f"""Generate a pithy minimal title for the following code snippet: 
+                    {cell}
+
+                    Instructions:
+                    - Keep it short and concise.
+                    - Keep it relevant to the code.
+                    - Keep it minimalistic.
+                    - Only return the title, nothing else.
+                    """
+                    )
+                )
+
             _start = prev_end_time
             time_dict[str(i)] = {
                 "Start": _start,
@@ -301,7 +322,9 @@ class CodingTutorial:
         code_cells = self._generate_tutorial_code()
         with self._recording_session() as (keyboard, proc):
             self.time_dict = self._type_code(code_cells, keyboard, proc)
-        self.video_manager.overlay_audio(self.time_dict, self.audio_path)
+        self.video_manager.overlay_audio(
+            self.time_dict, self.audio_path, self.title_list
+        )
 
     def make_tutorial(self):
         """Creates a complete tutorial by executing the main workflow."""
