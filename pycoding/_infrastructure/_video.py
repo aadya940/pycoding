@@ -120,21 +120,24 @@ class VideoManager:
                     str(Path("pycoding_data/title_files")),
                     title.replace(" ", "") + ".png",
                 )
-                _title_path = create_title(title, _title_path)
+                _title_path = create_title(
+                    title,
+                    _title_path,
+                    image_size=(
+                        video.size[0],
+                        video.size[1],
+                    ),  # Use actual video dimensions
+                )
 
-                # Create and configure the title image clip
-                image_clip = ImageClip(
-                    _title_path, duration=5
-                )  # Display image for 5 seconds
-                image_clip = image_clip.resized(
-                    new_size=video.size,
-                )  # Match video dimensions
+                # Create the title clip
+                image_clip = ImageClip(_title_path, duration=5)
+                # No need to resize since it's already the correct size
 
             except Exception as e:
                 _console.log(
                     f"[yellow]Warning: Failed to create title slide for segment {key}: {e}[/yellow]"
                 )
-                title = None  # Fall back to no title if creation fails
+                title = None
 
         audio_file = audio_path / f"snippet_{key}.mp3"
         if not audio_file.exists():
