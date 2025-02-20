@@ -56,6 +56,7 @@ This command will produce a fully automated programming tutorial, including both
 | `--narration-type`         | Narration mode: `parallel` (during typing) or `after` (post-processing). |
 | `--force-approve`          | Automatically approve all AI-generated responses. |
 | `--language`               | Programming language for the tutorial (use `jupyter kernelspec list` for available options). |
+| `--add-titles`             | Add text title slide before each code topic tutorial starts |
 
 ---
 
