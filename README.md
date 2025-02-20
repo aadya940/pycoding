@@ -2,95 +2,209 @@
 
 ## **Automated Coding Tutorial Generation with Audio Narration**
 
-**Pycoding** is an agentic Python library designed to generate fully automated, natural-looking coding tutorials with real-time or post-processed audio narration.
+**Pycoding** is an agentic Python library designed to generate fully automated, natural-looking coding tutorials with real-time or post-processed audio narration. It combines AI-powered code generation, screen recording, and voice synthesis to create engaging programming tutorials.
 
 ---
+
+## **Key Features**
+
+- **AI-Powered Code Generation**: Uses Google's Generative AI to create relevant code examples
+- **Natural Voice Narration**: Integrates with ElevenLabs for high-quality voice synthesis
+- **Real-Time Screen Recording**: Captures live coding demonstrations
+- **Multi-Language Support**: Works with multiple programming languages
+- **Flexible Narration Modes**: Supports both real-time and post-processed narration
+- **Title Slide Generation**: Optional title slides for each code segment
+- **Automated Window Management**: Handles Jupyter console and matplotlib windows automatically
 
 ## **Supported Languages**
 
 Pycoding supports generating tutorials in the following programming languages:
 
-- **Python**  
-- **C/C++**  
-- **Julia**  
-- **Rust**  
-- **Bash**  
-- **R**  
+- **Python** (`python3`)
+- **C/C++** (`xcpp17`)
+- **Julia** (`julia`)
+- **Rust** (`rust`)
+- **Bash** (`bash`)
+- **R** (`r`)
 
 ---
 
-## **Usage Example**
+## **Prerequisites**
 
-To generate a coding tutorial on "Classes in Python in 3 lines" with narration, run the following command:
+Before installing Pycoding, ensure you have the following:
 
-```bash
-python3 -m pycoding --topic \  
-"Classes in Python in 3 lines." \  
---google-api-key YOUR_GOOGLE_API_KEY \  
---elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \  
---elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \  
---narration-type parallel \  
---language python3
+### **System Requirements**
+- Linux operating system (currently Linux-only)
+- `ffmpeg` for audio/video processing
+- `wmctrl` and `xwininfo` for window management
+- `gnome-terminal` for terminal emulation
+- Jupyter installation with required language kernels
+
+### **API Requirements**
+- Google Generative AI API key
+- ElevenLabs API key and voice ID
+
+### **Python Dependencies**
+Core dependencies include:
+```
+ffmpeg-python
+google-generativeai
+pydub
+simpleaudio
+pyautogui
+pynput
+rich 
+elevenlabs
+jupyter
+ipython
+pycaw
+comtypes
+pygetwindow
+moviepy
+opencv-python
 ```
 
-This command will produce a fully automated programming tutorial, including both code and narration.
+---
+
+## **Installation**
+
+1. **Clone the Repository**
+```bash
+git clone https://github.com/your-repo/pycoding.git
+cd pycoding
+```
+
+2. **Install Dependencies**
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+3. **Install the Library**
+```bash
+python3 -m pip install .
+```
+
+4. **Configure Jupyter Kernels**
+See [README_kernels.md](README_kernels.md) for detailed instructions on setting up language kernels.
+
+---
+
+## **Usage**
+
+### **Command Line Interface**
+
+Generate a coding tutorial using the command line:
+
+```bash
+python3 -m pycoding \
+    --topic "Your Tutorial Topic" \
+    --google-api-key YOUR_GOOGLE_API_KEY \
+    --elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \
+    --elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \
+    --narration-type parallel \
+    --language python3
+    --force-approve
+    --add-titles
+```
+
+### **Python API**
+
+```python
+from pycoding import CodingTutorial, GoogleGenAI
+
+# Initialize AI model
+model = GoogleGenAI(google_api_key)
+
+# Create tutorial
+tutorial = CodingTutorial(
+    topic="Your Tutorial Topic",
+    eleven_labs_api_key="YOUR_ELEVENLABS_API_KEY",
+    eleven_labs_voice_id="YOUR_ELEVENLABS_VOICE_ID",
+    model_object=model,
+    path_info=[],  # Optional paths for code context
+    narration_type="parallel",  # or "after"
+    language="python3",
+    force_approve=False,  # Set to True to skip manual approvals
+    add_titles=True  # Add title slides
+)
+
+# Generate the tutorial
+tutorial.make_tutorial()
+```
+
+### **Command Line Options**
+
+| **Flag**                   | **Description** |
+|----------------------------|----------------|
+| `--topic`                  | Tutorial topic |
+| `--google-api-key`         | Google Generative AI API key |
+| `--elevenlabs-api-key`     | ElevenLabs API key |
+| `--elevenlabs-voice-id`    | ElevenLabs voice ID |
+| `--io-path`                | Paths for code context (optional) |
+| `--narration-type`         | Narration mode: `parallel` or `after` |
+| `--language`               | Programming language |
+| `--force-approve`          | Skip manual approvals |
+| `--add-titles`             | Add title slides |
+
+---
+
+## **Output**
+
+The generated tutorial includes:
+- Screen recording of code typing and execution
+- AI-generated voice narration
+- Optional title slides
+- Synchronized audio and video
+- Output files in `pycoding_data/` directory
 
 ---
 
 ## **Examples**
 
-### **Decorators in Python in 3 Lines**  
-🔗 [Example Tutorial](https://github.com/user-attachments/assets/98f24e3c-20c0-4caf-ad92-76a9222b3569)  
-
----
-
-## **Command-Line Flags**
-
-| **Flag**                   | **Description** |
-|----------------------------|----------------|
-| `--topic`                  | Topic for the coding tutorial. |
-| `--google-api-key`         | API key for Google LLM. |
-| `--elevenlabs-api-key`     | API key for Eleven Labs Text-to-Speech. |
-| `--elevenlabs-voice-id`    | Voice ID for Eleven Labs narration. |
-| `--io-path`                | Directory paths to consider for code generation. |
-| `--narration-type`         | Narration mode: `parallel` (during typing) or `after` (post-processing). |
-| `--force-approve`          | Automatically approve all AI-generated responses. |
-| `--language`               | Programming language for the tutorial (use `jupyter kernelspec list` for available options). |
-| `--add-titles`             | Add text title slide before each code topic tutorial starts |
-
----
-
-## **Installation & Setup**
-
-### **Requirements**  
-Ensure you have the following installed before using Pycoding:
-
-- `ffmpeg`  
-- A **Google Generative AI** account  
-- An **Eleven Labs** account  
-- `Jupyter`, `Required Language Jupyter Kernel (Look at README_kernels.md)`.   
-- Linux utilities: `wmctrl`, `xwininfo`, `gnome-terminal`, `jupyter`  
-
-### **Installation**
-
+### **Basic Python Tutorial**
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/pycoding.git
-cd pycoding
+python3 -m pycoding \
+    --topic "Python List Comprehensions in 3 Examples" \
+    --google-api-key YOUR_KEY \
+    --elevenlabs-api-key YOUR_KEY \
+    --elevenlabs-voice-id YOUR_ID \
+    --language python3
+```
 
-# Install dependencies
-python3 -m pip install -r requirements.txt
-
-# Install Library
-python3 -m pip install .
+### **C++ Tutorial with Titles**
+```bash
+python3 -m pycoding \
+    --topic "Understanding C++ Templates" \
+    --google-api-key YOUR_KEY \
+    --elevenlabs-api-key YOUR_KEY \
+    --elevenlabs-voice-id YOUR_ID \
+    --language xcpp17 \
+    --add-titles
 ```
 
 ---
 
 ## **Limitations**
 
-- **Linux Only**: Currently, Pycoding only supports Linux-based environments.
+- Currently supports Linux environments only
+- Requires specific window management utilities
+- API keys needed for AI services
+- Language kernels must be properly configured
 
-## Contributing
+---
 
-Contributions are welcome! Feel free to open issues or submit pull requests.
+## **Contributing**
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## **License**
+
+[Add your license information here]
+
+---
+
+## **Author**
+
+Aadya Chinubhai
