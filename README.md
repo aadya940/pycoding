@@ -203,12 +203,6 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ---
 
-## **License**
-
-[Add your license information here]
-
----
-
 ## **Author**
 
 Aadya Chinubhai
