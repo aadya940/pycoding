@@ -77,6 +77,10 @@ class PromptManager:
         4. Make sure the code doesn't take more than 5 minutes to run.
         5. Refrain from User Inputs in the code.
         6. Only add essential and minimalistic code comments.
+        7. Write Jupyter console-friendly code:
+            - Must be self-contained and executable
+            - Only use commands available in Jupyter console
+            - Include any required library installation code
         """
 
     def build_prompt(self):
