@@ -1,5 +1,9 @@
 # **Pycoding**
 
+[Example Tutorial](https://github.com/user-attachments/assets/2f059979-9a68-4dc3-8942-b0a3ff3f1b8d)
+
+
+
 ## **Automated Coding Tutorial Generation with Audio Narration**
 
 **Pycoding** is an agentic Python library designed to generate fully automated, natural-looking coding tutorials with real-time or post-processed audio narration. It combines AI-powered code generation, screen recording, and voice synthesis to create engaging programming tutorials.
@@ -196,12 +200,6 @@ python3 -m pycoding \
 ## **Contributing**
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
----
-
-## **License**
-
-[Add your license information here]
 
 ---
 
