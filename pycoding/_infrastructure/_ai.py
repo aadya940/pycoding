@@ -159,64 +159,31 @@ class PromptManager:
             """
         return _prompt
 
-    def get_add_flowchart_prompt(self, code_snippet):
-        _example_cpp_code = """
-        #include <iostream>
-        int main() {  
-            int x = 5, y = 3, result;  
-            asm("imul %1, %2" : "=r"(result) : "r"(x), "r"(y));  
-            std::cout << "Result: " << result << "\n"; 
-        }
-        """
+    def get_add_flowchart_prompt(self, code_snippet: str, flowchart_path: str) -> str:
+        """Generate a more focused flowchart prompt."""
         _prompt = f"""
-        Generate Python code using the `graphviz` library to create a flowchart for the given code snippet. 
-        
-        Follow these guidelines:
+        Create a clear and intuitive flowchart for the following code using Python's graphviz library.
+        Focus on visualizing the control flow and key operations.
 
-        - Use `graphviz.Digraph` to construct the flowchart.
-        - Ensure the graph is readable and does not go off-screen by using:
-            dot.attr(size="8,8", rankdir="TB", concentrate="true")
-        
-        - Use appropriate flowchart symbols:
-            Start/End → Oval (shape="oval", fillcolor="lightblue")
-            Process (assignments, calculations, function calls) → Rectangle (shape="box", fillcolor="lightcoral")
-            Input/Output (print, input, etc.) → Parallelogram (shape="parallelogram", fillcolor="lightyellow")
-            Decisions (if, loops, conditions) → Diamond (shape="diamond", fillcolor="lightgreen")
+        Guidelines for the flowchart:
+        1. Use meaningful node labels that explain the purpose (not just the code)
+        2. Show the flow of data and decision points clearly
+        3. Group related operations where possible
+        4. Use color coding meaningfully:
+            - Start/End nodes → Oval, lightblue
+            - Process nodes → Rectangle, lightcoral
+            - Decision nodes → Diamond, lightgreen
+            - Input/Output → Parallelogram, lightyellow
+            - Function calls → Rectangle, lightgray
+        5. Add brief explanatory labels on edges where the flow isn't obvious
+        6. Keep the visualization clean and uncluttered
 
-        - Label all nodes clearly based on the logic of the given code.
-        - Ensure all edges correctly represent the flow of execution.
+        Code to visualize:
+        ```
+        {code_snippet}
+        ```
 
-        Output format:
-        The LLM must only return a Python script containing the Graphviz code, without any 
-        explanations or additional text.
-
-        Example Input:
-
-        {_example_cpp_code}
-
-        Example Output:
-        from graphviz import Digraph
-
-        dot = Digraph("Flowchart", format="png")
-
-        dot.attr(size="8,8", rankdir="TB", concentrate="true")  
-
-        dot.node("S", "Start Program", shape="oval", style="filled", fillcolor="lightblue")
-        dot.node("I", "Initialize x=5, y=3", shape="parallelogram", style="filled", fillcolor="lightgreen")
-        dot.node("A", "Execute Inline Assembly\n(imul x, y)", shape="box", style="filled", fillcolor="lightcoral")
-        dot.node("R", "Store Result in Register", shape="parallelogram", style="filled", fillcolor="lightgreen")
-        dot.node("O", "Print Result", shape="box", style="filled", fillcolor="lightyellow")
-        dot.node("E", "End Program", shape="oval", style="filled", fillcolor="lightblue")
-
-        dot.edge("S", "I")
-        dot.edge("I", "A")
-        dot.edge("A", "R")
-        dot.edge("R", "O")
-        dot.edge("O", "E")
-
-        dot.render("flowchart", view=True)
-
-        The code snippet is as follows:
-            {code_snippet}
+        Return only the Python graphviz code that generates the flowchart.
+        The code must save the flowchart to: {flowchart_path[:-4]}
         """
         return _prompt

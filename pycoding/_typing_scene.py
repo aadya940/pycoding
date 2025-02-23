@@ -21,6 +21,7 @@ from ._utils import (
     parse_code,
     _is_jupyter_idle,
     _get_audio_length,
+    needs_flowchart,
 )
 from ._platforms import PlatformManager
 from .scene import CodingScene
@@ -216,31 +217,66 @@ class CodingTutorial:
             )
 
     def _generate_flowchart(self, code: str, index: int) -> str:
-        """Generate a flowchart for the given code snippet."""
+        """Generate a flowchart for the given code snippet if needed."""
         try:
-            # Get flowchart code from AI
-            flowchart_prompt = self._prompt_manager.get_add_flowchart_prompt(code)
-            flowchart_code = self.model_object.send_message(flowchart_prompt)
-            flowchart_code = parse_code(flowchart_code)
-            # Parse and execute the flowchart code
-            flowchart_path = f"pycoding_data/flowcharts/flowchart_{index}.png"
+            # First check if this code snippet needs a flowchart
+            if not needs_flowchart(code):
+                _console.log(
+                    f"[blue]Skipping flowchart for snippet {index} - not needed[/blue]"
+                )
+                return None
 
-            # Write the code to a temporary file
+            # Generate flowchart for complex code
+            flowchart_path = f"pycoding_data/flowcharts/flowchart_{index}.png"
+            flowchart_path = str(Path(flowchart_path))
+
+            # Get flowchart code from AI
+            flowchart_prompt = self._prompt_manager.get_add_flowchart_prompt(
+                code, flowchart_path
+            )
+            flowchart_code = self.model_object.send_message(flowchart_prompt)
+
+            # Extract and execute the flowchart code
+            flowchart_code_blocks = parse_code(flowchart_code)
+            if not flowchart_code_blocks:
+                raise ValueError("No flowchart code generated")
+
+            flowchart_code = flowchart_code_blocks[0]
+
+            # Write to temporary file
             temp_script = f"pycoding_data/flowcharts/temp_script_{index}.py"
+            temp_script = str(Path(temp_script))
             with open(temp_script, "w") as f:
                 f.write(flowchart_code)
 
-            # Execute the script to generate flowchart
-            subprocess.run(["python3", temp_script], check=True)
+            # Execute with proper error handling
+            try:
+                result = subprocess.run(
+                    ["python3", temp_script], check=True, capture_output=True, text=True
+                )
+                if result.stderr:
+                    _console.log(
+                        f"[yellow]Flowchart generation warnings:[/yellow]\n{result.stderr}"
+                    )
+            except subprocess.CalledProcessError as e:
+                _console.log(f"[red]Flowchart generation failed:[/red]\n{e.stderr}")
+                return None
 
-            # Clean up temporary script
+            # Cleanup
             os.remove(temp_script)
 
-            return flowchart_path if os.path.exists(flowchart_path) else None
+            # Verify output
+            if os.path.exists(flowchart_path):
+                _console.log(
+                    f"[green]Generated flowchart for complex code segment {index}[/green]"
+                )
+                return flowchart_path
+
+            return None
 
         except Exception as e:
             _console.log(
-                f"[yellow]Warning: Failed to generate flowchart for snippet {index}: {e}[/yellow]"
+                f"[yellow]Warning: Failed to generate flowchart for snippet {index}:[/yellow]\n{str(e)}"
             )
             return None
 
@@ -329,6 +365,7 @@ class CodingTutorial:
             if self.add_flowchart:
                 flowchart_path = self._generate_flowchart(cell, i)
                 self.flowchart_list.append(flowchart_path)
+                _console.log(f"Flowchart generated for snippet {i}: {flowchart_path}")
 
             prev_end_time = final_end
 

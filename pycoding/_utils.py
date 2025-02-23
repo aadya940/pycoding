@@ -119,10 +119,21 @@ def _is_jupyter_idle(proc):
     """Check if the IPython process is idle by monitoring its CPU usage."""
     try:
         p = psutil.Process(proc.pid)
-        cpu_usage = p.cpu_percent(interval=0.1)  # Get CPU usage
-        return cpu_usage < 1  # If CPU usage is very low, assume idle
-    except psutil.NoSuchProcess:
-        return True  # If the process is gone, it's done
+        # Get all child processes
+        children = p.children(recursive=True)
+
+        # Check CPU usage of main process and all children
+        total_cpu = p.cpu_percent(interval=0.1)
+        for child in children:
+            try:
+                total_cpu += child.cpu_percent(interval=0.1)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        return total_cpu < 5.0  # Higher threshold for combined CPU usage
+
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return True  # If process is gone or inaccessible, consider it done
 
 
 def parse_code(text):
@@ -131,3 +142,52 @@ def parse_code(text):
     _list = [{"language": lang, "code": code.strip()} for lang, code in code_blocks]
     _snippets = [iter_["code"] for iter_ in _list]
     return _snippets
+
+
+def needs_flowchart(code_snippet: str) -> bool:
+    """
+    Determines if a code snippet would benefit from a flowchart visualization.
+
+    Returns True if the code contains:
+    - Control flow statements (if/else, loops)
+    - Function definitions with multiple paths
+    - Complex algorithms or data transformations
+    """
+    # Keywords that suggest control flow or complex logic
+    flow_indicators = {
+        "if",
+        "else",
+        "elif",
+        "for",
+        "while",
+        "try",
+        "except",
+        "match",
+        "case",
+        "def",
+        "class",
+        "return",
+        "yield",
+        "break",
+        "continue",
+    }
+
+    # Convert code to lowercase for case-insensitive matching
+    code_lower = code_snippet.lower()
+
+    # Check for presence of flow control keywords
+    has_flow_control = any(
+        f" {keyword} " in f" {code_lower} " for keyword in flow_indicators
+    )
+
+    # Count the number of lines (excluding empty lines and comments)
+    significant_lines = len(
+        [
+            line
+            for line in code_snippet.split("\n")
+            if line.strip() and not line.strip().startswith("#")
+        ]
+    )
+
+    # Return True if there's control flow or the code is complex enough
+    return has_flow_control and significant_lines > 3
