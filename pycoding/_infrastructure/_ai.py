@@ -178,6 +178,14 @@ class PromptManager:
         5. Add brief explanatory labels on edges where the flow isn't obvious
         6. Keep the visualization clean and uncluttered
 
+        Required rendering settings (must include exactly as shown):
+            ```python
+            graph = graphviz.Digraph(engine='dot')
+            # Force size to match 1920x1080 aspect ratio (16:9)
+            graph.attr(size='19.2,10.8!')  # Size in inches
+            graph.attr(dpi='100')          # This will result in 1920x1080 pixel output
+            ```
+
         Code to visualize:
         ```
         {code_snippet}

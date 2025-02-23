@@ -169,9 +169,6 @@ class VideoManager:
                     flowchart_clip = ImageClip(
                         flowchart_path, duration=10
                     )  # 10 seconds duration
-                    flowchart_clip = flowchart_clip.resize(
-                        width=video.size[0], height=video.size[1]
-                    )
 
                     if title_clip:
                         return concatenate_videoclips(

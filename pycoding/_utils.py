@@ -172,22 +172,17 @@ def needs_flowchart(code_snippet: str) -> bool:
         "continue",
     }
 
-    # Convert code to lowercase for case-insensitive matching
-    code_lower = code_snippet.lower()
-
-    # Check for presence of flow control keywords
-    has_flow_control = any(
-        f" {keyword} " in f" {code_lower} " for keyword in flow_indicators
-    )
-
-    # Count the number of lines (excluding empty lines and comments)
-    significant_lines = len(
-        [
-            line
-            for line in code_snippet.split("\n")
-            if line.strip() and not line.strip().startswith("#")
-        ]
-    )
+    # Check for presence of flow control keywords, excluding commented lines
+    has_flow_control = False
+    for line in code_snippet.split("\n"):
+        line = line.strip()
+        if line and not line.startswith("#"):
+            # Check if any flow indicator is present in this non-commented line
+            if any(
+                f" {keyword} " in f" {line.lower()} " for keyword in flow_indicators
+            ):
+                has_flow_control = True
+                break
 
     # Return True if there's control flow or the code is complex enough
-    return has_flow_control and significant_lines > 3
+    return has_flow_control
