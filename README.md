@@ -19,6 +19,7 @@
 - **Flexible Narration Modes**: Supports both real-time and post-processed narration
 - **Title Slide Generation**: Optional title slides for each code segment
 - **Automated Window Management**: Handles Jupyter console and matplotlib windows automatically
+- **Flowchart Visualizations**: Optional flowchart visualizations for code logic
 
 ## **Supported Languages**
 
@@ -43,6 +44,7 @@ Before installing Pycoding, ensure you have the following:
 - `wmctrl` and `xwininfo` for window management
 - `gnome-terminal` for terminal emulation
 - Jupyter installation with required language kernels
+- `graphviz` for flowchart generation
 
 ### **API Requirements**
 - Google Generative AI API key
@@ -83,7 +85,19 @@ cd pycoding
 python3 -m pip install -r requirements.txt
 ```
 
-3. **Install the Library**
+3. **Install System Dependencies**
+```bash
+# For Ubuntu/Debian
+sudo apt-get install ffmpeg graphviz
+
+# For Fedora
+sudo dnf install ffmpeg graphviz
+
+# For Arch Linux
+sudo pacman -S ffmpeg graphviz
+```
+
+4. **Install the Library**
 ```bash
 python3 -m pip install .
 ```
@@ -106,9 +120,11 @@ python3 -m pycoding \
     --elevenlabs-api-key YOUR_ELEVENLABS_API_KEY \
     --elevenlabs-voice-id YOUR_ELEVENLABS_VOICE_ID \
     --narration-type parallel \
-    --language python3
-    --force-approve
-    --add-titles
+    --language python3 \
+    --force-approve \
+    --add-titles \
+    --add-flowchart \
+    --io-path /path/to/example/code
 ```
 
 ### **Python API**
@@ -129,7 +145,9 @@ tutorial = CodingTutorial(
     narration_type="parallel",  # or "after"
     language="python3",
     force_approve=False,  # Set to True to skip manual approvals
-    add_titles=True  # Add title slides
+    add_titles=True,  # Add title slides
+    add_flowchart=True,  # Add flowchart visualization
+    io_path="/path/to/example/code"  # Specify paths for code generation context
 )
 
 # Generate the tutorial
@@ -149,6 +167,7 @@ tutorial.make_tutorial()
 | `--language`               | Programming language |
 | `--force-approve`          | Skip manual approvals |
 | `--add-titles`             | Add title slides |
+| `--add-flowchart`          | Add flowchart visualization |
 
 ---
 
@@ -158,6 +177,7 @@ The generated tutorial includes:
 - Screen recording of code typing and execution
 - AI-generated voice narration
 - Optional title slides
+- Optional flowchart visualizations
 - Synchronized audio and video
 - Output files in `pycoding_data/` directory
 
@@ -175,7 +195,7 @@ python3 -m pycoding \
     --language python3
 ```
 
-### **C++ Tutorial with Titles**
+### **C++ Tutorial with Titles and Flowchart**
 ```bash
 python3 -m pycoding \
     --topic "Understanding C++ Templates" \
@@ -183,7 +203,8 @@ python3 -m pycoding \
     --elevenlabs-api-key YOUR_KEY \
     --elevenlabs-voice-id YOUR_ID \
     --language xcpp17 \
-    --add-titles
+    --add-titles \
+    --add-flowchart
 ```
 
 ---
