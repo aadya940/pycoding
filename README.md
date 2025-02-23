@@ -1,7 +1,6 @@
 # **Pycoding**
 
-[Example Tutorial](https://github.com/user-attachments/assets/2f059979-9a68-4dc3-8942-b0a3ff3f1b8d)
-
+[Example Tutorial](https://github.com/user-attachments/assets/a6a7110d-6f13-47cb-b968-0aad3db89335)
 
 ## **Automated Coding Tutorial Generation with Audio Narration**
 
