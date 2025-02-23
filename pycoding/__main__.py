@@ -59,6 +59,11 @@ parser.add_argument(
     action="store_true",
     help="Add title slides before each code segment (default: False).",
 )
+parser.add_argument(
+    "--add-flowchart",
+    action="store_true",  # Makes it a flag (True if provided, False if absent)
+    help="Add flowchart visualization at the end of each code segment (default: False).",
+)
 
 # Parse arguments
 _args = parser.parse_args()
@@ -100,6 +105,7 @@ _tutorial = CodingTutorial(
     force_approve=_args.force_approve,
     language=_args.language,
     add_titles=_args.add_titles,
+    add_flowchart=_args.add_flowchart,
 )
 
 _tutorial.make_tutorial()

@@ -83,6 +83,7 @@ class CodingTutorial:
         language: str = "python3",
         force_approve: bool = False,
         add_titles: bool = False,
+        add_flowchart: bool = False,
     ) -> None:
         """Initialize the CodingTutorial class.
 
@@ -128,6 +129,7 @@ class CodingTutorial:
         self.language = language
         self.force_approve = force_approve
         self.add_titles = add_titles
+        self.add_flowchart = add_flowchart
 
         if self.add_titles:
             os.makedirs(Path("pycoding_data/title_files"), exist_ok=True)
@@ -147,6 +149,13 @@ class CodingTutorial:
             self.voice_object,
             force_approve,
         )
+
+        # Add flowchart storage only if needed
+        if self.add_flowchart:
+            os.makedirs(Path("pycoding_data/flowcharts"), exist_ok=True)
+            self.flowchart_list = []
+        else:
+            self.flowchart_list = None
 
         assert path_info is not None
 
@@ -205,6 +214,35 @@ class CodingTutorial:
             _console.log(
                 "[yellow]Warning: Matplotlib thread did not exit cleanly[/yellow]"
             )
+
+    def _generate_flowchart(self, code: str, index: int) -> str:
+        """Generate a flowchart for the given code snippet."""
+        try:
+            # Get flowchart code from AI
+            flowchart_prompt = self._prompt_manager.get_add_flowchart_prompt(code)
+            flowchart_code = self.model_object.send_message(flowchart_prompt)
+            flowchart_code = parse_code(flowchart_code)
+            # Parse and execute the flowchart code
+            flowchart_path = f"pycoding_data/flowcharts/flowchart_{index}.png"
+
+            # Write the code to a temporary file
+            temp_script = f"pycoding_data/flowcharts/temp_script_{index}.py"
+            with open(temp_script, "w") as f:
+                f.write(flowchart_code)
+
+            # Execute the script to generate flowchart
+            subprocess.run(["python3", temp_script], check=True)
+
+            # Clean up temporary script
+            os.remove(temp_script)
+
+            return flowchart_path if os.path.exists(flowchart_path) else None
+
+        except Exception as e:
+            _console.log(
+                f"[yellow]Warning: Failed to generate flowchart for snippet {index}: {e}[/yellow]"
+            )
+            return None
 
     def _type_code(
         self, code_cells: list[str], keyboard: Controller, proc: subprocess.Popen
@@ -287,6 +325,11 @@ class CodingTutorial:
             time_dict[str(i)]["Audio-Start"] = audio_start
             time_dict[str(i)]["End"] = final_end
 
+            # Generate flowchart only if enabled
+            if self.add_flowchart:
+                flowchart_path = self._generate_flowchart(cell, i)
+                self.flowchart_list.append(flowchart_path)
+
             prev_end_time = final_end
 
         return time_dict
@@ -324,7 +367,7 @@ class CodingTutorial:
         with self._recording_session() as (keyboard, proc):
             self.time_dict = self._type_code(code_cells, keyboard, proc)
         self.video_manager.overlay_audio(
-            self.time_dict, self.audio_path, self.title_list
+            self.time_dict, self.audio_path, self.title_list, self.flowchart_list
         )
 
     def make_tutorial(self):

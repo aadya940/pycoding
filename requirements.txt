@@ -13,3 +13,4 @@ comtypes
 pygetwindow
 moviepy
 opencv-python
+graphviz>=0.20.1

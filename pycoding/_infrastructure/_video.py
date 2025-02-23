@@ -110,8 +110,10 @@ class VideoManager:
             self.ffmpeg_process.terminate()
             self.ffmpeg_process.wait()
 
-    def _process_video_segment(self, params: Tuple, title) -> VideoFileClip:
-        """Process a single video segment with its audio in parallel."""
+    def _process_video_segment(
+        self, params: Tuple, title, flowchart_path=None
+    ) -> VideoFileClip:
+        """Process a single video segment with its audio and optional flowchart."""
         key, timing, video, audio_path, base_start = params
 
         # Load audio file first to check existence and get duration
@@ -161,7 +163,30 @@ class VideoManager:
             # Combine video and audio
             final_segment = video_segment.with_audio(audio_clip)
 
-            # Add title if it exists
+            # Add flowchart if it exists
+            if flowchart_path and os.path.exists(flowchart_path):
+                try:
+                    flowchart_clip = ImageClip(
+                        flowchart_path, duration=10
+                    )  # 10 seconds duration
+                    flowchart_clip = flowchart_clip.resize(
+                        width=video.size[0], height=video.size[1]
+                    )
+
+                    if title_clip:
+                        return concatenate_videoclips(
+                            [title_clip, final_segment, flowchart_clip],
+                            method="compose",
+                        )
+                    return concatenate_videoclips(
+                        [final_segment, flowchart_clip], method="compose"
+                    )
+                except Exception as e:
+                    _console.log(
+                        f"[yellow]Warning: Failed to add flowchart for segment {key}: {e}[/yellow]"
+                    )
+
+            # Return original clip combination if no flowchart
             if title_clip:
                 return concatenate_videoclips(
                     [title_clip, final_segment], method="compose"
@@ -172,8 +197,8 @@ class VideoManager:
             _console.log(f"[red]Error processing clip {key}: {e}[/red]")
             return None
 
-    def overlay_audio(self, time_dict, audio_path, titles=None):
-        """Overlays narration audio on the recorded screen video."""
+    def overlay_audio(self, time_dict, audio_path, titles=None, flowcharts=None):
+        """Overlays narration audio on the recorded screen video with optional flowcharts."""
         video_path = Path("pycoding_data/screen_recording.mp4")
         output_path = Path("pycoding_data/final_tutorial.mp4")
 
@@ -200,7 +225,6 @@ class VideoManager:
         # Process video segments in parallel while maintaining order
         final_clips: List[VideoFileClip] = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Create all futures and store them with their indices
             futures_with_index = [
                 (
                     i,
@@ -210,6 +234,7 @@ class VideoManager:
                         self.titles[i]
                         if self.titles and i < len(self.titles)
                         else None,
+                        flowcharts[i] if flowcharts and i < len(flowcharts) else None,
                     ),
                 )
                 for i, params in enumerate(process_params)

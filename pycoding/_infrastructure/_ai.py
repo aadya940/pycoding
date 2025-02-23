@@ -158,3 +158,65 @@ class PromptManager:
             Format your response as a natural, flowing explanation
             """
         return _prompt
+
+    def get_add_flowchart_prompt(self, code_snippet):
+        _example_cpp_code = """
+        #include <iostream>
+        int main() {  
+            int x = 5, y = 3, result;  
+            asm("imul %1, %2" : "=r"(result) : "r"(x), "r"(y));  
+            std::cout << "Result: " << result << "\n"; 
+        }
+        """
+        _prompt = f"""
+        Generate Python code using the `graphviz` library to create a flowchart for the given code snippet. 
+        
+        Follow these guidelines:
+
+        - Use `graphviz.Digraph` to construct the flowchart.
+        - Ensure the graph is readable and does not go off-screen by using:
+            dot.attr(size="8,8", rankdir="TB", concentrate="true")
+        
+        - Use appropriate flowchart symbols:
+            Start/End → Oval (shape="oval", fillcolor="lightblue")
+            Process (assignments, calculations, function calls) → Rectangle (shape="box", fillcolor="lightcoral")
+            Input/Output (print, input, etc.) → Parallelogram (shape="parallelogram", fillcolor="lightyellow")
+            Decisions (if, loops, conditions) → Diamond (shape="diamond", fillcolor="lightgreen")
+
+        - Label all nodes clearly based on the logic of the given code.
+        - Ensure all edges correctly represent the flow of execution.
+
+        Output format:
+        The LLM must only return a Python script containing the Graphviz code, without any 
+        explanations or additional text.
+
+        Example Input:
+
+        {_example_cpp_code}
+
+        Example Output:
+        from graphviz import Digraph
+
+        dot = Digraph("Flowchart", format="png")
+
+        dot.attr(size="8,8", rankdir="TB", concentrate="true")  
+
+        dot.node("S", "Start Program", shape="oval", style="filled", fillcolor="lightblue")
+        dot.node("I", "Initialize x=5, y=3", shape="parallelogram", style="filled", fillcolor="lightgreen")
+        dot.node("A", "Execute Inline Assembly\n(imul x, y)", shape="box", style="filled", fillcolor="lightcoral")
+        dot.node("R", "Store Result in Register", shape="parallelogram", style="filled", fillcolor="lightgreen")
+        dot.node("O", "Print Result", shape="box", style="filled", fillcolor="lightyellow")
+        dot.node("E", "End Program", shape="oval", style="filled", fillcolor="lightblue")
+
+        dot.edge("S", "I")
+        dot.edge("I", "A")
+        dot.edge("A", "R")
+        dot.edge("R", "O")
+        dot.edge("O", "E")
+
+        dot.render("flowchart", view=True)
+
+        The code snippet is as follows:
+            {code_snippet}
+        """
+        return _prompt
