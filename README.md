@@ -74,7 +74,7 @@ opencv-python
 
 1. **Clone the Repository**
 ```bash
-git clone https://github.com/your-repo/pycoding.git
+git clone https://github.com/aadya940/pycoding.git
 cd pycoding
 ```
 
